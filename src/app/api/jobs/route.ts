@@ -15,6 +15,7 @@ function generateDynamicFallbackJobs(background: string, interests: string, loca
       location: loc,
       workMode: location.toLowerCase().includes("remote") ? "Remote" : "Hybrid",
       description: `Join our team as a ${bg.split(",")[0].trim()} expert focusing on ${int}. Drive key initiatives, design solutions, and scale our core operations.`,
+      fullDescription: `Join our team as a ${bg.split(",")[0].trim()} expert focusing on ${int}. Drive key initiatives, design solutions, and scale our core operations. We are seeking a highly motivated professional with deep expertise in ${bg} to lead projects and collaborate with global stakeholders. Strong problem-solving, communication, and technical leadership required.`,
       applyLink: "https://www.linkedin.com/jobs",
     },
     {
@@ -24,6 +25,7 @@ function generateDynamicFallbackJobs(background: string, interests: string, loca
       location: loc,
       workMode: "Remote",
       description: `Looking for skilled talent with strong background in ${bg}. Responsible for end-to-end delivery in ${int} projects.`,
+      fullDescription: `Looking for skilled talent with strong background in ${bg}. Responsible for end-to-end delivery in ${int} projects. You will work closely with cross-functional teams to analyze requirements, implement best practices, and deliver high-impact results for our clients.`,
       applyLink: "https://www.indeed.com",
     },
     {
@@ -33,6 +35,7 @@ function generateDynamicFallbackJobs(background: string, interests: string, loca
       location: loc,
       workMode: "Onsite",
       description: `Collaborate with cross-functional teams leveraging ${bg} and industry best practices in ${int}.`,
+      fullDescription: `Collaborate with cross-functional teams leveraging ${bg} and industry best practices in ${int}. The ideal candidate brings extensive experience in ${bg}, a passion for quality, and a track record of driving operational excellence.`,
       applyLink: "https://www.glassdoor.com",
     },
   ];
@@ -89,6 +92,8 @@ export async function GET(request: NextRequest) {
             workMode: item.job_is_remote ? "Remote" : "Onsite",
             description:
               ((item.job_description as string) || "").slice(0, 200) + "…",
+            fullDescription: (item.job_description as string) || "",
+            postedDate: (item.job_posted_at_datetime_utc as string) || null,
             applyLink: (item.job_apply_link as string) || null,
           }));
 
