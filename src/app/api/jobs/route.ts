@@ -24,7 +24,7 @@ interface GeminiRankResult {
 
 /**
  * Step 1: AI-Powered Query Builder
- * Converts vague or indirect user input into 2-3 targeted job search query strings.
+ * Converts user input into 2-3 targeted job search query strings.
  */
 async function generateSearchQueriesWithGemini(
   background: string,
@@ -73,8 +73,13 @@ Return ONLY valid JSON in this exact shape, with no extra text or markdown:
 
         const parsed = JSON.parse(cleaned);
         if (parsed && Array.isArray(parsed.queries) && parsed.queries.length > 0) {
-          console.log("Gemini Generated Job Search Queries:", parsed.queries);
-          return parsed.queries.filter((q: unknown): q is string => typeof q === "string" && q.trim().length > 0);
+          const validQueries = parsed.queries.filter(
+            (q: unknown): q is string => typeof q === "string" && q.trim().length > 0
+          );
+          if (validQueries.length > 0) {
+            console.log("Gemini Generated Job Search Queries:", validQueries);
+            return validQueries;
+          }
         }
       }
     } catch (err) {
@@ -86,101 +91,9 @@ Return ONLY valid JSON in this exact shape, with no extra text or markdown:
   return [fallbackQuery];
 }
 
-function generateDiverseCandidateJobs(
-  background: string,
-  interests: string,
-  location: string
-): RawJob[] {
-  const loc = location || "Remote / Anywhere";
-  const bg = background || "General";
-  const int = interests || "Growth";
-
-  return [
-    {
-      id: "candidate-1",
-      title: `Senior ${bg.split(",")[0].trim()} Designer / Specialist`,
-      company: "Studio Craft & Co.",
-      location: loc,
-      workMode: location.toLowerCase().includes("onsite") ? "Onsite" : "Hybrid",
-      description: `Lead creative and technical initiatives focused on ${bg} and ${int}. Develop concepts, prototypes, and final execution for high-profile clients.`,
-      fullDescription: `Studio Craft & Co. is seeking an experienced specialist in ${bg}. You will lead design systems, material selection, and collaborate directly with clients interested in ${int}. Requires strong portfolio and demonstrated problem solving.`,
-      applyLink: "https://www.linkedin.com/jobs",
-    },
-    {
-      id: "candidate-2",
-      title: `Creative & Product Consultant (${int.split(",")[0].trim()})`,
-      company: "Atelier Vanguard",
-      location: loc,
-      workMode: "Remote",
-      description: `Bridge creative craftsmanship and modern industry demands in ${int}. Hands-on execution with ${bg}.`,
-      fullDescription: `Atelier Vanguard is expanding its remote product team. We are looking for individuals passionate about ${int} with hands-on background in ${bg}. You will work on cross-disciplinary projects from research to production.`,
-      applyLink: "https://www.indeed.com",
-    },
-    {
-      id: "candidate-3",
-      title: `Textile, Fashion & Material Designer`,
-      company: "Loom & Thread Studio",
-      location: loc,
-      workMode: "Hybrid",
-      description: `Create bespoke patterns, textile illustrations, and physical/digital garment prototypes. Passion for drawing, fabric manipulation, and sustainable fashion.`,
-      fullDescription: `Loom & Thread is hiring a Textile & Surface Designer. If you love drawing, working with fabrics, patterns, and creative construction, you will design seasonal collections, source materials, and collaborate with production teams.`,
-      applyLink: "https://www.linkedin.com/jobs",
-    },
-    {
-      id: "candidate-4",
-      title: `Visual Illustrator & Concept Artist`,
-      company: "Kaleidoscope Media",
-      location: loc,
-      workMode: "Remote",
-      description: `Produce original artwork, digital illustrations, and visual storyboards across apparel, branding, and digital media.`,
-      fullDescription: `Kaleidoscope Media is looking for a Concept Artist & Illustrator. Ideal for individuals with strong visual expression, drawing skills, and an eye for aesthetics across merchandise and media.`,
-      applyLink: "https://www.glassdoor.com",
-    },
-    {
-      id: "candidate-5",
-      title: `Apparel Product Developer`,
-      company: "North Star Wear",
-      location: loc,
-      workMode: "Onsite",
-      description: `Oversee apparel lifecycle from fabric selection to sample fitting and mass production. Coordinate with fashion designers and vendors.`,
-      fullDescription: `North Star Wear is looking for an Apparel Developer. You will evaluate fabrics, inspect fit samples, and ensure designs meet production standards.`,
-      applyLink: "https://www.indeed.com",
-    },
-    {
-      id: "candidate-6",
-      title: `Mechanical / CAD Design Engineer`,
-      company: "Apex Precision Engineering",
-      location: loc,
-      workMode: "Onsite",
-      description: `Design mechanical assemblies, 3D CAD modeling, component drafting, and structural stress validation.`,
-      fullDescription: `Apex Engineering is seeking a Mechanical Engineer proficient in CAD, SolidWorks, and component manufacturing. You will create detailed engineering drawings and conduct prototype testing.`,
-      applyLink: "https://www.linkedin.com/jobs",
-    },
-    {
-      id: "candidate-7",
-      title: `Operations & Project Coordinator`,
-      company: "Global Horizon Logistics",
-      location: loc,
-      workMode: "Hybrid",
-      description: `Manage schedules, team resources, operational workflows, and delivery milestones across departments.`,
-      fullDescription: `Seeking an organized project coordinator to drive operational efficiency, track milestones, and ensure smooth delivery across cross-functional teams.`,
-      applyLink: "https://www.glassdoor.com",
-    },
-    {
-      id: "candidate-8",
-      title: `Digital Marketing & Brand Specialist`,
-      company: "Pulse Growth Agency",
-      location: loc,
-      workMode: "Remote",
-      description: `Execute multichannel campaigns, content marketing, creative storytelling, and audience engagement strategies.`,
-      fullDescription: `Pulse Growth is hiring a Brand Specialist to lead storytelling, content creation, and creative campaigns for emerging consumer and tech brands.`,
-      applyLink: "https://www.indeed.com",
-    },
-  ];
-}
-
 /**
  * Step 2: AI-Powered Job Evaluator & Ranker
+ * Strictly ranks from the provided pool only - NEVER hallucinates or invents fake jobs.
  */
 async function rankJobsWithGemini(
   jobs: RawJob[],
@@ -189,6 +102,10 @@ async function rankJobsWithGemini(
   location: string,
   apiKey: string
 ): Promise<RawJob[]> {
+  if (!jobs || jobs.length === 0) {
+    return [];
+  }
+
   const jobSummaries = jobs.map((j) => ({
     id: j.id,
     title: j.title,
@@ -203,20 +120,22 @@ User Background / Skills: ${background || "Open background"}
 User Interests / Goals: ${interests || "Open interests"}
 User Preferred Location: ${location || "Any"}
 
-Here is a pool of candidate job listings:
+Here is the exact list of available candidate job listings:
 ${JSON.stringify(jobSummaries, null, 2)}
 
-Instructions:
-1. Evaluate how well each job aligns with the user's background, transferable skills, creative or technical aptitude, and expressed interests (look beyond exact keywords to find genuine semantic and role fit).
-2. Select and rank the TOP 5 most relevant jobs.
-3. For each selected job, provide:
-   - "id": exact original id from the list
+Strict Instructions:
+1. Only rank and return jobs from the provided list above.
+2. Do NOT invent, create, or hallucinate any jobs, companies, or IDs that are not in the input list.
+3. If the input list is empty or none match, return an empty array [].
+4. Select and rank the TOP 5 most relevant jobs from this list.
+5. For each selected job, provide:
+   - "id": exact original id string from the input list
    - "matchScore": integer from 0 to 100 representing genuine fit
-   - "whyMatch": a concise 1-2 sentence explanation of why this job matches the user's background and interests.
+   - "whyMatch": a customized 1-2 sentence explanation of why this specific job matches the user.
 
 Return ONLY a valid JSON array matching this exact schema with no extra text or markdown formatting:
 [
-  { "id": "job_id_here", "matchScore": 92, "whyMatch": "Directly matches your interest in..." }
+  { "id": "job_id_here", "matchScore": 92, "whyMatch": "Directly matches your background in..." }
 ]`;
 
   const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
@@ -252,18 +171,21 @@ Return ONLY a valid JSON array matching this exact schema with no extra text or 
 
         const parsed: GeminiRankResult[] = JSON.parse(cleaned);
 
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           const jobMap = new Map(jobs.map((j) => [j.id, j]));
           const rankedJobs: RawJob[] = [];
 
           for (const item of parsed) {
+            // Anti-hallucination guard: strict validation against original JSearch job IDs
             const original = jobMap.get(item.id);
             if (original) {
               rankedJobs.push({
                 ...original,
-                matchScore: typeof item.matchScore === "number" ? item.matchScore : 85,
+                matchScore: typeof item.matchScore === "number" ? item.matchScore : 80,
                 whyMatch: item.whyMatch || "Matches your profile.",
               });
+            } else {
+              console.warn(`[Anti-Hallucination] Discarded non-existent job ID returned by Gemini: "${item.id}"`);
             }
           }
 
@@ -278,11 +200,11 @@ Return ONLY a valid JSON array matching this exact schema with no extra text or 
     }
   }
 
-  // Fallback if Gemini fails or returns unparseable output
+  // Fallback: return first 5 raw jobs without hallucinating new data
   return jobs.slice(0, 5).map((j, i) => ({
     ...j,
-    matchScore: 88 - i * 4,
-    whyMatch: `Aligned with your background in ${background || "the field"} and interest in ${interests || "industry roles"}.`,
+    matchScore: 85 - i * 3,
+    whyMatch: `Relevant role matching ${background || "your profile"}.`,
   }));
 }
 
@@ -306,7 +228,7 @@ export async function GET(request: NextRequest) {
   let rawJobs: RawJob[] = [];
   const seenJobKeys = new Set<string>();
 
-  // 2. Fetch jobs from JSearch for each query and deduplicate
+  // 2. Fetch real jobs from JSearch for each query and deduplicate
   if (jsearchKey && jsearchKey !== "your_jsearch_api_key_here") {
     for (const query of searchQueries) {
       try {
@@ -348,6 +270,8 @@ export async function GET(request: NextRequest) {
               });
             }
           }
+        } else {
+          console.log(`[JSearch API] Status ${response.status} for query: "${query}" in "${location}"`);
         }
       } catch (err) {
         console.warn(`JSearch query for "${query}" encountered an issue:`, err);
@@ -355,9 +279,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // If JSearch didn't return jobs, use diverse candidate pool matching generated queries
+  // Raw JSearch Log Output as requested
+  console.log("==================================================");
+  console.log(`[Raw JSearch Results] Total jobs returned: ${rawJobs.length}`);
+  if (rawJobs.length > 0) {
+    console.log(
+      "Jobs found:",
+      rawJobs.map((j) => ({ title: j.title, company: j.company, location: j.location }))
+    );
+  } else {
+    console.log("No real jobs returned from JSearch API for queries:", searchQueries);
+  }
+  console.log("==================================================");
+
+  // If JSearch returned 0 jobs, do NOT fabricate or hallucinate fake jobs.
   if (rawJobs.length === 0) {
-    rawJobs = generateDiverseCandidateJobs(searchQueries.join(", "), interests, location);
+    return NextResponse.json({ jobs: [] });
   }
 
   // 3. AI Semantic Ranking & Evaluation
@@ -368,7 +305,7 @@ export async function GET(request: NextRequest) {
     finalJobs = rawJobs.slice(0, 5).map((j, i) => ({
       ...j,
       matchScore: 90 - i * 5,
-      whyMatch: `Relevant to ${background || "your experience"} and ${interests || "career goals"}.`,
+      whyMatch: `Relevant role matching your search terms.`,
     }));
   }
 
