@@ -36,7 +36,7 @@ Structure requirements:
 
 Formatting: Output only the cover letter text ready to send. No markdown headings, placeholders like [Your Name] are fine at the bottom. Keep it under 250 words.`;
 
-    const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
+    const models = ["gemini-3.6-flash", "gemini-2.5-flash"];
     let letter = "";
     let lastError = "";
 
