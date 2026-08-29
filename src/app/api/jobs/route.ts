@@ -22,6 +22,70 @@ interface GeminiRankResult {
   whyMatch: string;
 }
 
+/**
+ * Step 1: AI-Powered Query Builder
+ * Converts vague or indirect user input into 2-3 targeted job search query strings.
+ */
+async function generateSearchQueriesWithGemini(
+  background: string,
+  interests: string,
+  apiKey: string
+): Promise<string[]> {
+  const fallbackQuery = [background, interests].filter(Boolean).join(" ") || "general";
+
+  const prompt = `Based on this person's background and interests, generate 2-3 concise, effective job search query strings that a job search engine like Indeed would understand. Focus on job titles and industry terms, not full sentences.
+
+Person's Background: ${background || "Open"}
+Person's Interests: ${interests || "Open"}
+
+Return ONLY valid JSON in this exact shape, with no extra text or markdown:
+{ "queries": ["query one", "query two", "query three"] }`;
+
+  const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 200,
+            },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+        let cleaned = rawText.trim();
+        if (cleaned.startsWith("```json")) {
+          cleaned = cleaned.replace(/^```json/, "").replace(/```$/, "").trim();
+        } else if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```/, "").replace(/```$/, "").trim();
+        }
+
+        const parsed = JSON.parse(cleaned);
+        if (parsed && Array.isArray(parsed.queries) && parsed.queries.length > 0) {
+          console.log("Gemini Generated Job Search Queries:", parsed.queries);
+          return parsed.queries.filter((q: unknown): q is string => typeof q === "string" && q.trim().length > 0);
+        }
+      }
+    } catch (err) {
+      console.warn(`Query generation attempt with model ${model} failed:`, err);
+    }
+  }
+
+  // Fallback to raw query
+  return [fallbackQuery];
+}
+
 function generateDiverseCandidateJobs(
   background: string,
   interests: string,
@@ -115,6 +179,9 @@ function generateDiverseCandidateJobs(
   ];
 }
 
+/**
+ * Step 2: AI-Powered Job Evaluator & Ranker
+ */
 async function rankJobsWithGemini(
   jobs: RawJob[],
   background: string,
@@ -174,7 +241,6 @@ Return ONLY a valid JSON array matching this exact schema with no extra text or 
       if (response.ok) {
         const data = await response.json();
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        console.log("Raw Gemini Ranking Output:", rawText);
 
         // Clean markdown code blocks
         let cleaned = rawText.trim();
@@ -226,69 +292,79 @@ export async function GET(request: NextRequest) {
   const interests = searchParams.get("interests") || "";
   const location = searchParams.get("location") || "";
 
-  // Build a broad search query from the user's input
-  const queryParts = [background, interests].filter(Boolean);
-  const query = queryParts.join(" ") || "jobs";
-
   const jsearchKey = process.env.JSEARCH_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
+  // 1. Generate 2-3 targeted search queries with Gemini
+  let searchQueries: string[] = [];
+  if (geminiKey && geminiKey !== "your_key_here") {
+    searchQueries = await generateSearchQueriesWithGemini(background, interests, geminiKey);
+  } else {
+    searchQueries = [[background, interests].filter(Boolean).join(" ") || "jobs"];
+  }
+
   let rawJobs: RawJob[] = [];
+  const seenJobKeys = new Set<string>();
 
-  // 1. Fetch broader set of jobs from JSearch if configured
+  // 2. Fetch jobs from JSearch for each query and deduplicate
   if (jsearchKey && jsearchKey !== "your_jsearch_api_key_here") {
-    try {
-      const params = new URLSearchParams({
-        query: location ? `${query} in ${location}` : query,
-        num_pages: "1",
-        date_posted: "all",
-      });
+    for (const query of searchQueries) {
+      try {
+        const params = new URLSearchParams({
+          query: location ? `${query} in ${location}` : query,
+          num_pages: "1",
+          date_posted: "all",
+        });
 
-      const response = await fetch(`${JSEARCH_API_URL}?${params.toString()}`, {
-        method: "GET",
-        headers: {
-          "X-RapidAPI-Key": jsearchKey,
-          "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-        },
-      });
+        const response = await fetch(`${JSEARCH_API_URL}?${params.toString()}`, {
+          method: "GET",
+          headers: {
+            "X-RapidAPI-Key": jsearchKey,
+            "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+          },
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const apiData = data.data || [];
+        if (response.ok) {
+          const data = await response.json();
+          const apiData = data.data || [];
 
-        if (apiData.length > 0) {
-          rawJobs = apiData.map((item: Record<string, unknown>) => ({
-            id: (item.job_id as string) || String(Math.random()),
-            title: (item.job_title as string) || "Untitled Position",
-            company: (item.employer_name as string) || "Confidential",
-            location:
-              [item.job_city, item.job_state, item.job_country]
-                .filter(Boolean)
-                .join(", ") || (item.job_is_remote ? "Remote" : "Location on request"),
-            workMode: item.job_is_remote ? "Remote" : "Onsite",
-            description: ((item.job_description as string) || "").slice(0, 300) + "…",
-            fullDescription: (item.job_description as string) || "",
-            postedDate: (item.job_posted_at_datetime_utc as string) || null,
-            applyLink: (item.job_apply_link as string) || null,
-          }));
+          for (const item of apiData) {
+            const key = `${(item.job_title || "").toString().toLowerCase().trim()}|${(item.employer_name || "").toString().toLowerCase().trim()}`;
+            if (!seenJobKeys.has(key)) {
+              seenJobKeys.add(key);
+              rawJobs.push({
+                id: (item.job_id as string) || String(Math.random()),
+                title: (item.job_title as string) || "Untitled Position",
+                company: (item.employer_name as string) || "Confidential",
+                location:
+                  [item.job_city, item.job_state, item.job_country]
+                    .filter(Boolean)
+                    .join(", ") || (item.job_is_remote ? "Remote" : "Location on request"),
+                workMode: item.job_is_remote ? "Remote" : "Onsite",
+                description: ((item.job_description as string) || "").slice(0, 300) + "…",
+                fullDescription: (item.job_description as string) || "",
+                postedDate: (item.job_posted_at_datetime_utc as string) || null,
+                applyLink: (item.job_apply_link as string) || null,
+              });
+            }
+          }
         }
+      } catch (err) {
+        console.warn(`JSearch query for "${query}" encountered an issue:`, err);
       }
-    } catch (err) {
-      console.warn("JSearch live query failed, using diverse candidates pool.", err);
     }
   }
 
-  // If JSearch didn't return jobs (or unconfigured/unsubscribed), use diverse pool
+  // If JSearch didn't return jobs, use diverse candidate pool matching generated queries
   if (rawJobs.length === 0) {
-    rawJobs = generateDiverseCandidateJobs(background, interests, location);
+    rawJobs = generateDiverseCandidateJobs(searchQueries.join(", "), interests, location);
   }
 
-  // 2. Perform AI Ranking with Gemini
+  // 3. AI Semantic Ranking & Evaluation
   let finalJobs: RawJob[] = [];
   if (geminiKey && geminiKey !== "your_key_here") {
     finalJobs = await rankJobsWithGemini(rawJobs, background, interests, location, geminiKey);
   } else {
-    // Basic fallback ranking
     finalJobs = rawJobs.slice(0, 5).map((j, i) => ({
       ...j,
       matchScore: 90 - i * 5,
