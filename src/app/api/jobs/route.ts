@@ -3,7 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const JSEARCH_API_URL = "https://jsearch.p.rapidapi.com/search";
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite"];
+const GEMINI_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-flash-lite-latest",
+];
 
 interface RawJob {
   id: string;
@@ -218,6 +224,7 @@ Return ONLY valid JSON: { "queries": ["query1", "query2", ...], "isUnconventiona
           const isUnconventional = Boolean(parsed.isUnconventionalField);
           if (valid.length > 0) {
             console.log("==================================================");
+            console.log(`[Gemini Query Generation] Model Used: ${model}`);
             console.log(`[Gemini Query Generation] Input: Background="${background}", Interests="${interests}"`);
             console.log("[Gemini Query Generation] Generated queries:", valid);
             console.log(`[Gemini Query Generation] isUnconventionalField: ${isUnconventional}`);
@@ -230,24 +237,33 @@ Return ONLY valid JSON: { "queries": ["query1", "query2", ...], "isUnconventiona
         }
       } else {
         const errText = await response.text();
-        console.warn(`[Gemini API] Query generation returned ${response.status}: ${errText}`);
+        if (response.status === 404) {
+          console.warn(`[Gemini API] ❌ MODEL NOT FOUND (404) for model "${model}". (Error: ${errText.slice(0, 120)})`);
+        } else if (response.status === 429) {
+          console.warn(`[Gemini API] ⚠️ QUOTA EXCEEDED (429 Rate Limit) for model "${model}". Trying next available model.`);
+        } else {
+          console.warn(`[Gemini API] Query generation with "${model}" returned status ${response.status}: ${errText.slice(0, 150)}`);
+        }
       }
-    } catch (err) {
-      console.warn(`[Gemini API] Query generator attempt failed:`, err);
+    } catch (err: any) {
+      console.warn(`[Gemini API] Query generator attempt with "${model}" failed:`, err.message || err);
     }
   }
 
-  // Intelligent domain fallback if Gemini is rate limited or offline
+  // Intelligent domain fallback if all Gemini models fail or are rate-limited
   const text = `${background} ${interests}`.toLowerCase();
   let isUnconventional = false;
   let queries: string[] = [];
 
-  if (text.includes("photo") || text.includes("camera") || text.includes("picture") || text.includes("lens")) {
+  if (text.includes("sketch") || text.includes("paint") || text.includes("draw") || text.includes("portrait") || text.includes("art") || text.includes("illustrat")) {
     isUnconventional = true;
-    queries = ["Photographer", "Photojournalist", "Freelance Photographer", "Photo Editor", "Content Creator", "Event Photographer"];
+    queries = ["Sketch Artist", "Portrait Artist", "Illustrator", "Painter", "Visual Designer", "Freelance Illustrator"];
+  } else if (text.includes("photo") || text.includes("camera") || text.includes("picture") || text.includes("lens")) {
+    isUnconventional = true;
+    queries = ["Photographer", "Photojournalist", "Freelance Photographer", "Photo Editor", "Event Photographer", "Digital Media Specialist"];
   } else if (text.includes("laugh") || text.includes("comedy") || text.includes("standup") || text.includes("humor")) {
     isUnconventional = true;
-    queries = ["Standup Comedian", "Comedy Writer", "Creative Copywriter", "Event Host", "Content Creator", "Video Scriptwriter"];
+    queries = ["Standup Comedian", "Comedy Writer", "Creative Copywriter", "Event Host", "Video Scriptwriter", "Humor Writer"];
   } else if (text.includes("account") || text.includes("finance") || text.includes("number") || text.includes("tax") || text.includes("audit")) {
     isUnconventional = false;
     queries = ["Accountant", "Junior Accountant", "Accounts Executive", "Financial Analyst", "Tax Associate", "Audit Assistant"];
@@ -259,14 +275,19 @@ Return ONLY valid JSON: { "queries": ["query1", "query2", ...], "isUnconventiona
     queries = ["Ceramic Artist", "Studio Potter", "Craft Instructor", "Product Designer", "Workshop Facilitator"];
   } else {
     isUnconventional = false;
-    const rawFallback = [background, interests].filter(Boolean).join(" ") || "general";
-    queries = [rawFallback, "Content Creator", "Project Coordinator", "Associate"];
+    // Extract key words instead of full sentences
+    const cleanTokens = `${interests} ${background}`
+      .replace(/[^a-zA-Z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 3 && !["love", "very", "good", "with", "like", "want", "more"].includes(w.toLowerCase()));
+    const primeTerm = cleanTokens.slice(0, 2).join(" ") || "Specialist";
+    queries = [primeTerm, `${primeTerm} Executive`, "Creative Specialist", "Consultant"];
   }
 
   console.log("==================================================");
-  console.log(`[Query Generation (Fallback)] Input: Background="${background}", Interests="${interests}"`);
-  console.log("[Query Generation (Fallback)] Generated queries:", queries);
-  console.log(`[Query Generation (Fallback)] isUnconventionalField: ${isUnconventional}`);
+  console.log(`[Query Generation (Smart Fallback)] Input: Background="${background}", Interests="${interests}"`);
+  console.log("[Query Generation (Smart Fallback)] Generated queries:", queries);
+  console.log(`[Query Generation (Smart Fallback)] isUnconventionalField: ${isUnconventional}`);
   console.log("==================================================");
 
   return { queries, isUnconventionalField: isUnconventional };
@@ -364,6 +385,7 @@ Return a JSON array matching this schema:
           if (rankedJobs.length > 0) {
             rankedJobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
             console.log("==================================================");
+            console.log(`[Gemini Ranking] Model Used: ${model}`);
             console.log("[Gemini Ranking] Top ranked jobs with genuine AI scores and reasons:");
             rankedJobs.forEach((r, idx) => {
               console.log(` #${idx + 1} [${r.source}] [${r.matchScore}%] "${r.title}" at ${r.company}`);
@@ -375,10 +397,16 @@ Return a JSON array matching this schema:
         }
       } else {
         const errText = await response.text();
-        console.warn(`[Gemini API] Ranking attempt with ${model} returned ${response.status}: ${errText}`);
+        if (response.status === 404) {
+          console.warn(`[Gemini API] ❌ MODEL NOT FOUND (404) for model "${model}". (Error: ${errText.slice(0, 120)})`);
+        } else if (response.status === 429) {
+          console.warn(`[Gemini API] ⚠️ QUOTA EXCEEDED (429 Rate Limit) for model "${model}". Trying next available model.`);
+        } else {
+          console.warn(`[Gemini API] Ranking attempt with "${model}" returned status ${response.status}: ${errText.slice(0, 150)}`);
+        }
       }
-    } catch (err) {
-      console.warn(`[Gemini API] Ranking attempt with model ${model} failed:`, err);
+    } catch (err: any) {
+      console.warn(`[Gemini API] Ranking attempt with model "${model}" failed:`, err.message || err);
     }
   }
 

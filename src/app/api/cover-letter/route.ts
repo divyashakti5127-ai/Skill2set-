@@ -36,7 +36,13 @@ Structure requirements:
 
 Formatting: Output only the cover letter text ready to send. No markdown headings, placeholders like [Your Name] are fine at the bottom. Keep it under 250 words.`;
 
-    const models = ["gemini-3.6-flash", "gemini-2.5-flash"];
+    const models = [
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.6-flash",
+      "gemini-flash-latest",
+      "gemini-flash-lite-latest",
+    ];
     let letter = "";
     let lastError = "";
 
@@ -69,14 +75,23 @@ Formatting: Output only the cover letter text ready to send. No markdown heading
             data.candidates?.[0]?.content?.parts?.[0]?.text;
           if (generatedText) {
             letter = generatedText.trim();
+            console.log(`[Cover Letter API] Successfully generated using model: ${model}`);
             break;
           }
         } else {
           const errorData = await response.text();
-          lastError = `Model ${model} returned ${response.status}: ${errorData}`;
+          if (response.status === 404) {
+            lastError = `❌ MODEL NOT FOUND (404) for model "${model}". (Error: ${errorData.slice(0, 120)})`;
+          } else if (response.status === 429) {
+            lastError = `⚠️ QUOTA EXCEEDED (429 Rate Limit) for model "${model}". Trying next model.`;
+          } else {
+            lastError = `Model "${model}" returned ${response.status}: ${errorData.slice(0, 150)}`;
+          }
+          console.warn(`[Cover Letter API] ${lastError}`);
         }
       } catch (err: any) {
         lastError = err.message || "Fetch failed";
+        console.warn(`[Cover Letter API] Attempt with "${model}" failed:`, lastError);
       }
     }
 

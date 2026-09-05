@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite"];
+const GEMINI_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-flash-lite-latest",
+];
 
 interface RoadmapResponse {
   overview: string;
@@ -77,14 +83,21 @@ Return ONLY a valid JSON object matching this schema.`;
           const parsed: RoadmapResponse = JSON.parse(cleaned);
 
           if (parsed && parsed.overview && Array.isArray(parsed.gettingStarted)) {
+            console.log(`[Career Roadmap API] Successfully generated using model: ${model}`);
             return NextResponse.json({ roadmap: parsed, field });
           }
         } else {
           const errText = await response.text();
-          console.warn(`[Career Roadmap API] ${model} returned ${response.status}: ${errText}`);
+          if (response.status === 404) {
+            console.warn(`[Career Roadmap API] ❌ MODEL NOT FOUND (404) for model "${model}". (Error: ${errText.slice(0, 120)})`);
+          } else if (response.status === 429) {
+            console.warn(`[Career Roadmap API] ⚠️ QUOTA EXCEEDED (429 Rate Limit) for model "${model}". Trying next available model.`);
+          } else {
+            console.warn(`[Career Roadmap API] Model "${model}" returned ${response.status}: ${errText.slice(0, 150)}`);
+          }
         }
-      } catch (err) {
-        console.warn(`[Career Roadmap API] Error with ${model}:`, err);
+      } catch (err: any) {
+        console.warn(`[Career Roadmap API] Error with model "${model}":`, err.message || err);
       }
     }
 
