@@ -49,31 +49,40 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
+    <div className="flex-1 flex items-center justify-center px-4 py-12 sm:py-20 relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
       <div className="w-full max-w-2xl">
         {/* Hero */}
-        <div className="text-center mb-10">
-          <h2 className="text-3xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight">
-            What&apos;s your next job?
+        <div className="text-center mb-10 space-y-3">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-3.5 py-1 text-xs font-semibold text-amber-400 mb-2">
+            <span>✨</span> There is always a way forward
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight leading-tight">
+            Discover your{" "}
+            <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+              path forward
+            </span>
           </h2>
-          <p className="text-muted text-base sm:text-lg max-w-md mx-auto">
-            Describe yourself in plain words. We&apos;ll find the best matching
-            jobs anywhere in the world.
+          <p className="text-muted text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
+            Describe your skills or passions in your own words. We uncover real job matches, gig opportunities, and step-by-step career roadmaps across India and beyond.
           </p>
         </div>
 
         {/* Card */}
         <form
           onSubmit={handleSubmit}
-          className="bg-card border border-border rounded-2xl p-6 sm:p-10"
+          className="bg-card border border-border hover:border-amber-500/30 transition-colors rounded-3xl p-6 sm:p-10 shadow-2xl relative backdrop-blur-sm"
         >
           {/* Field 1 – Good at */}
           <div className="mb-6">
             <label
               htmlFor="goodAt"
-              className="block text-sm font-medium text-foreground mb-2"
+              className="block text-sm font-semibold text-foreground mb-2 flex items-center justify-between"
             >
-              What are you good at?
+              <span>What are you good at or passionate about?</span>
+              <span className="text-xs text-muted font-normal">Required</span>
             </label>
             <textarea
               id="goodAt"
@@ -83,13 +92,13 @@ export default function HomePage() {
                 setGoodAt(e.target.value);
                 if (error) setError("");
               }}
-              placeholder="e.g. Mechanical engineering graduate, AutoCAD, SolidWorks, automobile design"
-              className={`w-full rounded-xl border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition resize-none leading-relaxed ${
+              placeholder="e.g. Sketching portraits, standup comedy, React frontend development, pottery, fitness training..."
+              className={`w-full rounded-2xl border bg-background/90 px-4 py-3.5 text-[15px] text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition resize-none leading-relaxed shadow-inner ${
                 error ? "border-red-500/70" : "border-border"
               }`}
             />
             {error && (
-              <p className="mt-1.5 text-xs text-red-400">{error}</p>
+              <p className="mt-1.5 text-xs text-red-400 font-medium">{error}</p>
             )}
           </div>
 
@@ -97,17 +106,18 @@ export default function HomePage() {
           <div className="mb-6">
             <label
               htmlFor="interests"
-              className="block text-sm font-medium text-foreground mb-2"
+              className="block text-sm font-semibold text-foreground mb-2 flex items-center justify-between"
             >
-              What kind of work interests you?
+              <span>What specific roles, crafts, or work interest you?</span>
+              <span className="text-xs text-muted font-normal">Optional</span>
             </label>
             <textarea
               id="interests"
-              rows={3}
+              rows={2}
               value={interests}
               onChange={(e) => setInterests(e.target.value)}
-              placeholder="e.g. Automotive design, manufacturing, EV industry"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition resize-none leading-relaxed"
+              placeholder="e.g. Portrait art, live performance, UI design, ceramic crafts, content creation..."
+              className="w-full rounded-2xl border border-border bg-background/90 px-4 py-3.5 text-[15px] text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition resize-none leading-relaxed shadow-inner"
             />
           </div>
 
@@ -115,36 +125,38 @@ export default function HomePage() {
           <div className="mb-8">
             <label
               htmlFor="where"
-              className="block text-sm font-medium text-foreground mb-2"
+              className="block text-sm font-semibold text-foreground mb-2 flex items-center justify-between"
             >
-              Where do you want to work?
+              <span>Where do you want to work or monetize?</span>
+              <span className="text-xs text-muted font-normal">Optional</span>
             </label>
-            <textarea
+            <input
               id="where"
-              rows={2}
+              type="text"
               value={where}
               onChange={(e) => setWhere(e.target.value)}
-              placeholder="e.g. India, Bengaluru, UAE, Germany, remote, or anywhere"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[15px] text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition resize-none leading-relaxed"
+              placeholder="e.g. India, Bengaluru, Mumbai, Delhi, Remote, or Worldwide"
+              className="w-full rounded-2xl border border-border bg-background/90 px-4 py-3.5 text-[15px] text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition shadow-inner"
             />
           </div>
 
           {/* Submit */}
           <button
             type="submit"
-            className="w-full rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold py-3.5 text-base transition-colors cursor-pointer"
+            className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold py-4 text-base transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 hover:scale-[1.01] cursor-pointer flex items-center justify-center gap-2"
           >
-            Find my best jobs
+            <span>Explore Opportunities & Roadmaps</span>
+            <span className="text-lg">➔</span>
           </button>
 
           {/* Add preferences toggle */}
-          <div className="mt-4 text-center">
+          <div className="mt-5 text-center">
             <button
               type="button"
               onClick={() => setShowPrefs(!showPrefs)}
-              className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              Add preferences
+              <span>{showPrefs ? "Hide preferences" : "Add experience & salary preferences"}</span>
               <svg
                 className={`w-3.5 h-3.5 transition-transform ${showPrefs ? "rotate-180" : ""}`}
                 fill="none"
@@ -163,7 +175,7 @@ export default function HomePage() {
 
           {/* Collapsible preferences */}
           {showPrefs && (
-            <div className="mt-5 pt-5 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="mt-5 pt-5 border-t border-border grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in">
               <div>
                 <label
                   htmlFor="experience"
@@ -175,7 +187,7 @@ export default function HomePage() {
                   id="experience"
                   value={experience}
                   onChange={(e) => setExperience(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition appearance-none cursor-pointer"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition appearance-none cursor-pointer"
                 >
                   <option value="">Any</option>
                   <option value="intern">Intern / Student</option>
@@ -196,7 +208,7 @@ export default function HomePage() {
                   id="workMode"
                   value={workMode}
                   onChange={(e) => setWorkMode(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition appearance-none cursor-pointer"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition appearance-none cursor-pointer"
                 >
                   <option value="">Any</option>
                   <option value="remote">Remote</option>
@@ -217,22 +229,22 @@ export default function HomePage() {
                   value={minSalary}
                   onChange={(e) => setMinSalary(e.target.value)}
                   placeholder="e.g. ₹8L, $60k"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
                 />
               </div>
             </div>
           )}
 
           {/* Examples */}
-          <div className="mt-6 pt-5 border-t border-border text-center">
-            <p className="text-xs text-muted">
-              Try:{" "}
+          <div className="mt-7 pt-5 border-t border-border/80 text-center">
+            <p className="text-xs text-muted flex flex-wrap items-center justify-center gap-1.5">
+              <span>Popular searches:</span>{" "}
               {examples.map((ex, i) => (
-                <span key={ex}>
+                <span key={ex} className="inline-flex items-center">
                   <button
                     type="button"
                     onClick={() => handleExample(ex)}
-                    className="text-accent/80 hover:text-accent hover:underline transition-colors cursor-pointer"
+                    className="text-amber-400/90 hover:text-amber-300 hover:underline transition-colors cursor-pointer font-medium"
                   >
                     {ex}
                   </button>

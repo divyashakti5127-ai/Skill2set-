@@ -30,18 +30,18 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {/* Header */}
-        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <header className="border-b border-border/80 bg-card/60 backdrop-blur-md sticky top-0 z-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-white font-bold text-sm">
-                S2J
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform">
+                ✦
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-foreground group-hover:text-accent-hover transition-colors">
+                <h1 className="text-lg font-bold text-foreground group-hover:text-amber-400 transition-colors flex items-center gap-1.5">
                   Skill2Job
                 </h1>
-                <p className="text-xs text-muted hidden sm:block">
-                  Find jobs that fit your skills
+                <p className="text-[11px] text-muted hidden sm:block tracking-wide">
+                  Find your path forward — from traditional careers to creator roadmaps
                 </p>
               </div>
             </Link>

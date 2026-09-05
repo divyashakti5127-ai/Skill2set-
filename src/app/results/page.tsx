@@ -32,8 +32,23 @@ interface RoadmapData {
 /* ───── Match Badge ───── */
 
 function MatchBadge({ score }: { score: number }) {
+  if (score >= 80) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-0.5 text-xs font-bold tabular-nums shadow-sm shadow-amber-500/10">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse mr-1.5" />
+        {score}% match
+      </span>
+    );
+  }
+  if (score >= 50) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-500/10 text-amber-400/90 border border-amber-500/20 px-2.5 py-0.5 text-xs font-semibold tabular-nums">
+        {score}% match
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex items-center rounded-full bg-accent/15 text-accent px-2.5 py-0.5 text-xs font-semibold tabular-nums">
+    <span className="inline-flex items-center rounded-full bg-slate-800/80 text-slate-400 border border-slate-700/50 px-2.5 py-0.5 text-xs font-medium tabular-nums">
       {score}% match
     </span>
   );
@@ -43,7 +58,7 @@ function MatchBadge({ score }: { score: number }) {
 
 function WorkModeBadge({ mode }: { mode: string }) {
   return (
-    <span className="inline-flex items-center rounded bg-border/60 text-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide">
+    <span className="inline-flex items-center rounded bg-slate-800/80 text-slate-400 border border-slate-700/40 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider">
       {mode}
     </span>
   );
@@ -91,29 +106,29 @@ ${roadmap.encouragement}
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl"
+        className="bg-card border border-amber-500/30 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl shadow-amber-500/10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-card/60">
+        <div className="px-6 py-5 border-b border-border/80 flex items-center justify-between bg-gradient-to-r from-amber-500/10 via-card to-card">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xl">🗺️</span>
-              <h3 className="text-lg font-semibold text-foreground capitalize">
+              <h3 className="text-lg font-bold text-foreground capitalize">
                 Career Roadmap: {field}
               </h3>
             </div>
             <p className="text-xs text-muted mt-0.5">
-              Personalized guide for building an income & career in India
+              Personalized blueprint for building income & momentum in India
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-muted hover:text-foreground transition-colors text-xl leading-none p-1 cursor-pointer"
+            className="text-muted hover:text-foreground transition-colors text-xl leading-none p-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer"
             aria-label="Close"
           >
             ✕
@@ -123,8 +138,8 @@ ${roadmap.encouragement}
         {/* Body */}
         <div className="px-6 py-6 overflow-y-auto flex-1 space-y-6 text-sm">
           {/* Overview */}
-          <div className="bg-accent/5 border border-accent/15 rounded-xl p-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-accent mb-1.5 flex items-center gap-1.5">
+          <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5 flex items-center gap-1.5">
               <span>💡</span> Market & Landscape Overview
             </h4>
             <p className="text-foreground/90 leading-relaxed">
@@ -205,18 +220,18 @@ ${roadmap.encouragement}
           </div>
 
           {/* Encouragement */}
-          <div className="bg-gradient-to-r from-accent/10 to-purple-500/10 border border-accent/20 rounded-xl p-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-accent mb-1 flex items-center gap-1.5">
+          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-600/15 border border-amber-500/30 rounded-xl p-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300 mb-1 flex items-center gap-1.5">
               <span>✨</span> Encouragement
             </h4>
-            <p className="text-foreground/90 italic leading-relaxed">
+            <p className="text-foreground/95 italic leading-relaxed">
               "{roadmap.encouragement}"
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border flex gap-3 justify-end bg-card/60">
+        <div className="px-6 py-4 border-t border-border/80 flex gap-3 justify-end bg-card/60">
           <button
             onClick={onClose}
             className="rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
@@ -225,7 +240,7 @@ ${roadmap.encouragement}
           </button>
           <button
             onClick={handleCopy}
-            className="rounded-lg bg-accent hover:bg-accent-hover text-white px-5 py-2 text-sm font-medium transition-colors cursor-pointer min-w-[90px] flex items-center justify-center gap-1.5"
+            className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-5 py-2 text-sm font-bold transition-all cursor-pointer min-w-[90px] flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
           >
             {copied ? (
               <>
@@ -291,17 +306,17 @@ function CoverLetterModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+        className="bg-card border border-amber-500/25 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl shadow-amber-500/10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between bg-gradient-to-r from-amber-500/10 via-card to-card">
           <div>
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-base font-bold text-foreground">
               Generated Cover Letter
             </h3>
             <p className="text-xs text-muted mt-0.5">
@@ -310,7 +325,7 @@ function CoverLetterModal({
           </div>
           <button
             onClick={onClose}
-            className="text-muted hover:text-foreground transition-colors text-xl leading-none p-1 cursor-pointer"
+            className="text-muted hover:text-foreground transition-colors text-xl leading-none p-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer"
             aria-label="Close"
           >
             ✕
@@ -325,7 +340,7 @@ function CoverLetterModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border flex gap-3 justify-end bg-card/50">
+        <div className="px-6 py-4 border-t border-border/80 flex gap-3 justify-end bg-card/60">
           <button
             onClick={onClose}
             className="rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
@@ -334,7 +349,7 @@ function CoverLetterModal({
           </button>
           <button
             onClick={handleCopy}
-            className="rounded-lg bg-accent hover:bg-accent-hover text-white px-5 py-2 text-sm font-medium transition-colors cursor-pointer min-w-[90px] flex items-center justify-center gap-1.5"
+            className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-5 py-2 text-sm font-bold transition-all cursor-pointer min-w-[90px] flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
           >
             {copied ? (
               <>
@@ -368,7 +383,7 @@ function CoverLetterModal({
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                   />
                 </svg>
-                Copy
+                Copy Cover Letter
               </>
             )}
           </button>
@@ -561,33 +576,33 @@ function ResultsContent() {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
       {/* Page heading */}
-      <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-8">
-        Your job search
+      <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight mb-8 flex items-center gap-2.5">
+        <span>✦</span> Your Recommended Paths
       </h2>
 
       {/* Search summary card */}
-      <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 space-y-5">
+      <div className="bg-card border border-border/90 rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm">
         <div>
-          <p className="text-xs font-medium text-muted mb-1">Background</p>
-          <p className="text-[15px] text-foreground">
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">Background</p>
+          <p className="text-[15px] font-medium text-foreground">
             {background || (
               <span className="text-muted italic">Not specified</span>
             )}
           </p>
         </div>
         <div>
-          <p className="text-xs font-medium text-muted mb-1">Interests</p>
-          <p className="text-[15px] text-foreground">
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">Interests & Passions</p>
+          <p className="text-[15px] font-medium text-foreground">
             {interests || (
               <span className="text-muted italic">Not specified</span>
             )}
           </p>
         </div>
         <div>
-          <p className="text-xs font-medium text-muted mb-1">
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">
             Preferred location
           </p>
-          <p className="text-[15px] text-foreground">
+          <p className="text-[15px] font-medium text-foreground">
             {location || (
               <span className="text-muted italic">Not specified</span>
             )}
@@ -599,10 +614,10 @@ function ResultsContent() {
       <div className="mt-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-foreground hover:border-foreground/30 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-border text-foreground/80 hover:text-foreground hover:border-amber-500/40 hover:bg-slate-800/40 px-4 py-2 text-sm font-medium transition-colors"
         >
           <svg
-            className="w-3.5 h-3.5"
+            className="w-3.5 h-3.5 text-amber-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -614,16 +629,16 @@ function ResultsContent() {
               d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
             />
           </svg>
-          Edit search
+          Edit search criteria
         </Link>
       </div>
 
       {/* ───── High-Prominence Career Roadmap Banner (if Unconventional/Gig Field) ───── */}
       {isUnconventionalField && (
-        <div className="mt-8 bg-gradient-to-r from-accent/15 via-card to-accent/5 border-2 border-accent/40 rounded-2xl p-6 sm:p-7 shadow-lg relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="mt-8 bg-gradient-to-br from-amber-500/20 via-slate-900/90 to-card border-2 border-amber-500/40 rounded-2xl p-6 sm:p-7 shadow-xl shadow-amber-500/5 relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center rounded-full bg-accent/20 text-accent px-3 py-1 text-xs font-semibold">
-              ✨ Recommended for this field
+            <span className="inline-flex items-center rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 text-xs font-bold shadow-sm">
+              ✨ Recommended for this path • There's always a way forward
             </span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mt-3">
@@ -634,19 +649,19 @@ function ResultsContent() {
                   Get a Career Roadmap for {interests || background}
                 </h3>
               </div>
-              <p className="text-sm text-foreground/80 leading-relaxed max-w-lg">
-                This field often has fewer traditional 9-to-5 job postings — a personalized AI roadmap will guide you through gigs, monetization channels, platforms, and building a sustainable career in India.
+              <p className="text-sm text-foreground/85 leading-relaxed max-w-lg">
+                This field often thrives beyond traditional 9-to-5 job postings — your personalized AI roadmap unlocks gigs, monetization channels, platforms, and building sustainable income in India.
               </p>
             </div>
             <button
               onClick={handleGenerateRoadmap}
               disabled={roadmapLoading}
-              className="rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-60 text-white px-6 py-3 text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 flex-shrink-0 shadow-md hover:shadow-accent/20"
+              className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 text-slate-950 px-6 py-3 text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 flex-shrink-0 shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98]"
             >
               {roadmapLoading ? (
                 <>
                   <svg
-                    className="animate-spin h-4 w-4 text-white"
+                    className="animate-spin h-4 w-4 text-slate-950"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -657,7 +672,7 @@ function ResultsContent() {
                       cy="12"
                       r="10"
                       stroke="currentColor"
-                      strokeWidth="4"
+                      strokeWidth={4}
                     ></circle>
                     <path
                       className="opacity-75"
@@ -665,7 +680,7 @@ function ResultsContent() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Creating Roadmap…
+                  Crafting Blueprint…
                 </>
               ) : (
                 <>
@@ -685,8 +700,8 @@ function ResultsContent() {
       )}
 
       {/* ───── Recommended jobs ───── */}
-      <h3 className="text-lg font-semibold text-foreground mt-10 mb-5">
-        Recommended jobs
+      <h3 className="text-lg font-bold text-foreground mt-10 mb-5 flex items-center gap-2">
+        <span>💼</span> Recommended Job Opportunities
       </h3>
 
       {/* Cover Letter Error Alert */}
@@ -699,8 +714,9 @@ function ResultsContent() {
       {/* Loading */}
       {loading && (
         <>
-          <p className="text-sm text-muted mb-4 animate-pulse">
-            Analyzing and ranking jobs with AI…
+          <p className="text-sm text-amber-400/90 mb-4 animate-pulse flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            Analyzing and ranking opportunities with AI…
           </p>
           <LoadingSkeleton />
         </>
@@ -716,7 +732,7 @@ function ResultsContent() {
       {/* No results */}
       {!loading && !error && jobs.length === 0 && (
         <p className="text-sm text-muted">
-          No jobs found. Try broadening your search.
+          No jobs found matching these exact terms. Try broadening your background or interests.
         </p>
       )}
 
@@ -726,15 +742,24 @@ function ResultsContent() {
           {jobs.map((job) => {
             const isExpanded = !!expandedJobIds[job.id];
             const isGeneratingThis = generatingLetterId === job.id;
+            const score = job.matchScore ?? 0;
+
+            // Visual card hierarchy styling based on match score
+            const cardHierarchyClass =
+              score >= 80
+                ? "bg-card border border-amber-500/35 hover:border-amber-500/60 shadow-lg shadow-amber-500/5"
+                : score >= 50
+                ? "bg-card border border-border/90 hover:border-amber-500/30"
+                : "bg-card/75 border border-border/60 opacity-90 hover:opacity-100 hover:border-border";
 
             return (
               <div
                 key={job.id}
-                className="bg-card border border-border rounded-2xl p-5 sm:p-6 hover:border-accent/30 transition-colors"
+                className={`${cardHierarchyClass} rounded-2xl p-5 sm:p-6 transition-all duration-200`}
               >
                 {/* Title + Match Score */}
                 <div className="flex items-start justify-between gap-3 mb-1.5">
-                  <h4 className="text-[15px] font-semibold text-foreground leading-snug">
+                  <h4 className="text-[16px] font-bold text-foreground leading-snug">
                     {job.title}
                   </h4>
                   {typeof job.matchScore === "number" && (
@@ -743,13 +768,13 @@ function ResultsContent() {
                 </div>
 
                 {/* Company */}
-                <p className="text-sm text-muted mb-2">{job.company}</p>
+                <p className="text-sm font-medium text-muted mb-2">{job.company}</p>
 
                 {/* Location + work mode */}
                 <div className="flex items-center gap-2 mb-3">
-                  <p className="text-xs text-muted/70 flex items-center gap-1">
+                  <p className="text-xs text-muted/80 flex items-center gap-1">
                     <svg
-                      className="w-3 h-3"
+                      className="w-3.5 h-3.5 text-amber-400/70"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -773,16 +798,16 @@ function ResultsContent() {
 
                 {/* Short preview Description */}
                 {!isExpanded && (
-                  <p className="text-sm text-foreground/75 leading-relaxed mb-3 line-clamp-2">
+                  <p className="text-sm text-foreground/80 leading-relaxed mb-3 line-clamp-2">
                     {job.description}
                   </p>
                 )}
 
                 {/* Why this matches section */}
                 {job.whyMatch && (
-                  <div className="bg-accent/5 border border-accent/15 rounded-lg px-3.5 py-2.5 mb-4">
-                    <p className="text-xs text-accent/90 leading-relaxed">
-                      <span className="font-medium">Why this matches:</span>{" "}
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-4">
+                    <p className="text-xs text-amber-300/90 leading-relaxed">
+                      <span className="font-bold text-amber-300">Why this matches:</span>{" "}
                       {job.whyMatch}
                     </p>
                   </div>
@@ -792,7 +817,7 @@ function ResultsContent() {
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-border/80 space-y-4 mb-4 animate-in fade-in duration-200">
                     <div>
-                      <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                      <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
                         Full Job Description
                       </p>
                       <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
@@ -812,7 +837,7 @@ function ResultsContent() {
                           href={job.applyLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline font-medium"
+                          className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 hover:underline font-semibold"
                         >
                           Official Apply Portal ↗
                         </a>
@@ -826,7 +851,7 @@ function ResultsContent() {
                   {/* View / Collapse Details button */}
                   <button
                     onClick={() => toggleDetails(job.id)}
-                    className="rounded-lg border border-border text-foreground/90 hover:bg-border/30 hover:border-foreground/30 px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="rounded-xl border border-border text-foreground/90 hover:bg-slate-800/50 hover:border-amber-500/30 px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     {isExpanded ? (
                       <>
@@ -869,12 +894,12 @@ function ResultsContent() {
                   <button
                     onClick={() => handleGenerateCoverLetter(job)}
                     disabled={isGeneratingThis}
-                    className="rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-60 text-white px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
+                    className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 text-slate-950 px-4 py-2 text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-amber-500/15"
                   >
                     {isGeneratingThis ? (
                       <>
                         <svg
-                          className="animate-spin -ml-0.5 mr-1 h-3.5 w-3.5 text-white"
+                          className="animate-spin -ml-0.5 mr-1 h-3.5 w-3.5 text-slate-950"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -885,7 +910,7 @@ function ResultsContent() {
                             cy="12"
                             r="10"
                             stroke="currentColor"
-                            strokeWidth="4"
+                            strokeWidth={4}
                           ></circle>
                           <path
                             className="opacity-75"
@@ -893,7 +918,7 @@ function ResultsContent() {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                           ></path>
                         </svg>
-                        Generating...
+                        Drafting Letter…
                       </>
                     ) : (
                       <>
@@ -902,7 +927,7 @@ function ResultsContent() {
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
-                          strokeWidth={2}
+                          strokeWidth={2.5}
                         >
                           <path
                             strokeLinecap="round"
@@ -923,18 +948,18 @@ function ResultsContent() {
 
       {/* ───── Secondary / Standard Career Roadmap Banner (for Standard Fields) ───── */}
       {!isUnconventionalField && !loading && (
-        <div className="mt-10 bg-card border border-border/90 rounded-2xl p-5 sm:p-6 text-card-foreground">
+        <div className="mt-10 bg-gradient-to-br from-card via-slate-900/80 to-amber-500/5 border border-amber-500/25 hover:border-amber-500/40 rounded-2xl p-6 text-card-foreground transition-all">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🧭</span>
-                <h4 className="text-sm font-semibold text-foreground">
-                  Want to explore alternate career growth or freelance paths?
+                <h4 className="text-sm font-bold text-foreground">
+                  Want to explore alternative career paths or freelance momentum?
                 </h4>
               </div>
               <p className="text-xs text-muted">
-                Generate an AI career roadmap to explore independent consulting, specialized niches, and skill progression in{" "}
-                <span className="text-foreground/90 font-medium">
+                Generate an AI career roadmap to explore independent consulting, specialized niches, and skills progression in{" "}
+                <span className="text-amber-300 font-semibold">
                   {interests || background || "your field"}
                 </span>.
               </p>
@@ -942,12 +967,12 @@ function ResultsContent() {
             <button
               onClick={handleGenerateRoadmap}
               disabled={roadmapLoading}
-              className="rounded-lg border border-border text-foreground/90 hover:bg-border/30 hover:border-foreground/30 px-4 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0"
+              className="rounded-xl border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0"
             >
               {roadmapLoading ? (
                 <>
                   <svg
-                    className="animate-spin h-3.5 w-3.5 text-foreground"
+                    className="animate-spin h-3.5 w-3.5 text-amber-300"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -958,7 +983,7 @@ function ResultsContent() {
                       cy="12"
                       r="10"
                       stroke="currentColor"
-                      strokeWidth="4"
+                      strokeWidth={4}
                     ></circle>
                     <path
                       className="opacity-75"
@@ -966,7 +991,7 @@ function ResultsContent() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Creating Roadmap…
+                  Crafting Blueprint…
                 </>
               ) : (
                 <>
