@@ -216,7 +216,9 @@ function ResultsContent() {
       if (location) params.set("location", location);
 
       try {
-        const res = await fetch(`/api/jobs?${params.toString()}`);
+        const res = await fetch(`/api/jobs?${params.toString()}`, {
+          cache: "no-store",
+        });
         const data = await res.json();
 
         if (!res.ok) {

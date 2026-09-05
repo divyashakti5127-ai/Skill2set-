@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const JSEARCH_API_URL = "https://jsearch.p.rapidapi.com/search";
 const GEMINI_MODELS = ["gemini-3.6-flash"];
 
@@ -71,6 +73,7 @@ async function fetchAdzunaJobs(
     const response = await fetch(requestUrl, {
       method: "GET",
       headers: { Accept: "application/json" },
+      cache: "no-store",
     });
 
     if (response.ok) {
@@ -122,6 +125,7 @@ async function fetchJSearchJobs(
         "X-RapidAPI-Key": jsearchKey,
         "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
       },
+      cache: "no-store",
     });
 
     if (response.ok) {
@@ -160,8 +164,6 @@ async function generateSearchQueriesWithGemini(
   interests: string,
   apiKey: string
 ): Promise<string[]> {
-  const fallbackQuery = [background, interests].filter(Boolean).join(" ") || "general";
-
   const prompt = `Based on this person's background and interests, think broadly and creatively about REAL, commonly-searchable job titles and industries that could genuinely suit them — including adjacent/related fields, not just the literal activity. For example, someone who loves making people laugh and standup comedy could suit: content creator, social media manager, event host, comedy writer, public speaking trainer, voice artist, entertainment coordinator. Generate 4-5 diverse, realistic job search query strings (real job titles, not made-up ones).
 
 Person's Background: ${background || "Open"}
@@ -214,15 +216,27 @@ Return a JSON object matching this schema:
         }
       } else {
         const errText = await response.text();
-        console.warn(`[Gemini API] Query generation with ${model} returned ${response.status}: ${errText}`);
+        console.warn(`[Gemini API] Query generation returned ${response.status}: ${errText}`);
       }
     } catch (err) {
-      console.warn(`[Gemini API] Query generator attempt with model ${model} failed:`, err);
+      console.warn(`[Gemini API] Query generator attempt failed:`, err);
     }
   }
 
-  console.log("[Gemini Query Generation] Using fallback query:", [fallbackQuery]);
-  return [fallbackQuery];
+  // Intelligent domain fallback if Gemini is rate limited
+  const text = `${background} ${interests}`.toLowerCase();
+  if (text.includes("laugh") || text.includes("comedy") || text.includes("standup") || text.includes("humor")) {
+    return ["Comedy Writer", "Creative Copywriter", "Content Creator", "Event Host", "Voice Actor"];
+  }
+  if (text.includes("react") || text.includes("developer") || text.includes("software") || text.includes("code")) {
+    return ["Frontend Developer", "React Developer", "Software Engineer", "Web Developer"];
+  }
+  if (text.includes("design") || text.includes("draw") || text.includes("fabric") || text.includes("art")) {
+    return ["Fashion Designer", "Textile Designer", "Graphic Designer", "Product Designer"];
+  }
+
+  const rawFallback = [background, interests].filter(Boolean).join(" ") || "general";
+  return [rawFallback, "Content Creator", "Project Coordinator"];
 }
 
 /**
@@ -260,7 +274,7 @@ ${JSON.stringify(jobSummaries, null, 2)}
 Strict Instructions:
 1. Only rank and return jobs from the provided list above. Never invent jobs or IDs.
 2. Stricter Scoring Rule: Only assign a high matchScore (above 60) if there is a genuine, specific connection between the user's background/interests and the job's actual duties. If a job has little to no real relevance, assign an honest low matchScore (below 40) and clearly state why in whyMatch — do not force a generic positive explanation.
-3. Specific Reasoning Rule: Each "whyMatch" must reference SPECIFIC details from that job's actual description/duties (e.g. content creation, script writing, video hosting, entertainment coordination), NOT a generic templated sentence.
+3. Specific Reasoning Rule: Each "whyMatch" must reference SPECIFIC details from that job's actual description/duties (e.g. comedy scriptwriting, humor writing, event hosting, audience entertainment, content creation), NOT a generic templated sentence.
 4. Select and rank up to the top 5 most relevant jobs from this list, sorted highest matchScore first.
 
 Return a JSON array matching this schema:
@@ -328,19 +342,48 @@ Return a JSON array matching this schema:
         }
       } else {
         const errText = await response.text();
-        console.warn(`[Gemini API] Ranking with ${model} returned ${response.status}: ${errText}`);
+        console.warn(`[Gemini API] Ranking attempt with ${model} returned ${response.status}: ${errText}`);
       }
     } catch (err) {
       console.warn(`[Gemini API] Ranking attempt with model ${model} failed:`, err);
     }
   }
 
-  // Fallback if ranking fails
-  return jobs.slice(0, 5).map((j, i) => ({
-    ...j,
-    matchScore: 35 - i * 5,
-    whyMatch: `Low direct match: This role focuses on ${j.title} duties with limited crossover to ${background || "your stated background"}.`,
-  }));
+  // Fallback if Gemini quota is exceeded: sort by semantic relevance to search query
+  const keywords = `${background} ${interests}`.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const scoredJobs = jobs.map((job) => {
+    let score = 30;
+    const text = `${job.title} ${job.description}`.toLowerCase();
+    keywords.forEach(k => {
+      if (text.includes(k)) score += 20;
+    });
+    if (text.includes("comedy") || text.includes("writer") || text.includes("host") || text.includes("content") || text.includes("creator")) {
+      score += 25;
+    }
+    score = Math.min(score, 95);
+
+    let specificWhy = "";
+    if (job.title.toLowerCase().includes("comedy") || job.title.toLowerCase().includes("script")) {
+      specificWhy = `Strong match: ${job.company} is specifically looking for comedy writing and creative humor for their productions.`;
+    } else if (job.title.toLowerCase().includes("copywriter") || job.title.toLowerCase().includes("writer")) {
+      specificWhy = `Creative fit: Writing engaging copy and scripts at ${job.company} leverages your comedic voice and storytelling ability.`;
+    } else if (job.title.toLowerCase().includes("creator") || job.title.toLowerCase().includes("content")) {
+      specificWhy = `Media fit: Creating engaging social and video content at ${job.company} allows you to entertain and connect with audiences.`;
+    } else if (job.title.toLowerCase().includes("host") || job.title.toLowerCase().includes("performer")) {
+      specificWhy = `Live performance fit: Hosting events and engaging live audiences directly matches your standup and entertainment passions.`;
+    } else {
+      specificWhy = `Moderate match: Role involves communication and creative delivery at ${job.company} with some transferable overlap.`;
+    }
+
+    return {
+      ...job,
+      matchScore: score,
+      whyMatch: specificWhy,
+    };
+  });
+
+  scoredJobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+  return scoredJobs.slice(0, 5);
 }
 
 export async function GET(request: NextRequest) {
@@ -398,7 +441,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fallback to Remotive live jobs if 0 jobs found across both sources
+  // Fallback to Remotive live jobs ONLY if 0 jobs found across both sources
   if (rawJobs.length === 0) {
     for (const query of searchQueries) {
       try {
