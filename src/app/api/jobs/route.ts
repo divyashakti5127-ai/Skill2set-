@@ -5,6 +5,7 @@ const GEMINI_MODELS = ["gemini-3.6-flash"];
 
 interface RawJob {
   id: string;
+  source: "Adzuna" | "JSearch" | "Remotive";
   title: string;
   company: string;
   location: string;
@@ -39,7 +40,7 @@ function getCountryCode(location: string): string {
 }
 
 /**
- * Fetch jobs directly from Adzuna API with detailed masked debug logging
+ * Fetch jobs directly from Adzuna API
  */
 async function fetchAdzunaJobs(
   query: string,
@@ -48,14 +49,6 @@ async function fetchAdzunaJobs(
   appKey: string
 ): Promise<RawJob[]> {
   const country = getCountryCode(location);
-  const maskedAppId = appId ? `${appId.slice(0, 4)}...` : "UNDEFINED";
-  const maskedAppKey = appKey ? `${appKey.slice(0, 4)}...` : "UNDEFINED";
-
-  console.log("==================================================");
-  console.log("[Adzuna Config Runtime]");
-  console.log(`process.env.ADZUNA_APP_ID: "${maskedAppId}"`);
-  console.log(`process.env.ADZUNA_APP_KEY: "${maskedAppKey}"`);
-
   const params = new URLSearchParams({
     app_id: appId,
     app_key: appKey,
@@ -64,54 +57,97 @@ async function fetchAdzunaJobs(
     "content-type": "application/json",
   });
 
-  if (location) {
+  // Only set 'where' if it's a specific city/region, not the whole country or generic term
+  const locLower = (location || "").toLowerCase().trim();
+  const genericCountries = ["india", "in", "us", "usa", "uk", "remote", "anywhere", "all", "global"];
+  if (location && !genericCountries.includes(locLower)) {
     params.set("where", location);
   }
 
   const requestUrl = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
-  const maskedUrl = requestUrl.replace(appKey, maskedAppKey);
-
-  console.log(`[Adzuna Request URL]: ${maskedUrl}`);
-
   const jobs: RawJob[] = [];
 
   try {
     const response = await fetch(requestUrl, {
       method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
 
-    const responseStatus = response.status;
-    const responseText = await response.text();
-
-    console.log(`[Adzuna Response Status]: ${responseStatus}`);
-    console.log(`[Adzuna Raw Response Body]: ${responseText.slice(0, 500)}${responseText.length > 500 ? "..." : ""}`);
-    console.log("==================================================");
-
     if (response.ok) {
-      const data = JSON.parse(responseText);
+      const data = await response.json();
       const results = data.results || [];
       for (const item of results) {
         jobs.push({
           id: `adzuna-${item.id}`,
-          title: item.title ? item.title.replace(/<[^>]*>?/gm, "") : "Untitled",
+          source: "Adzuna",
+          title: item.title ? item.title.replace(/<[^>]*>?/gm, "").trim() : "Untitled",
           company: item.company?.display_name || "Company",
-          location: item.location?.display_name || location || "Not specified",
-          workMode: item.contract_time === "full_time" ? "Full-time" : "Standard",
+          location: item.location?.display_name || location || "India",
+          workMode: item.contract_time === "full_time" ? "Full-time" : (item.contract_type === "permanent" ? "Permanent" : "Standard"),
           description: (item.description ? item.description.replace(/<[^>]*>?/gm, "").slice(0, 300) : "") + "…",
           fullDescription: item.description ? item.description.replace(/<[^>]*>?/gm, "") : "",
           postedDate: item.created || null,
           applyLink: item.redirect_url || null,
         });
       }
+    } else {
+      console.warn(`[Adzuna API] Query "${query}" returned status ${response.status}`);
     }
   } catch (err: any) {
-    console.error("[Adzuna Fetch Exception]:", err.message || err);
-    console.log("==================================================");
+    console.error("[Adzuna API Fetch Error]:", err.message || err);
   }
 
+  return jobs;
+}
+
+/**
+ * Fetch jobs from JSearch API
+ */
+async function fetchJSearchJobs(
+  query: string,
+  location: string,
+  jsearchKey: string
+): Promise<RawJob[]> {
+  const jobs: RawJob[] = [];
+  try {
+    const params = new URLSearchParams({
+      query: location ? `${query} in ${location}` : query,
+      num_pages: "1",
+      date_posted: "all",
+    });
+
+    const response = await fetch(`${JSEARCH_API_URL}?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "X-RapidAPI-Key": jsearchKey,
+        "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const apiData = data.data || [];
+      for (const item of apiData) {
+        jobs.push({
+          id: `jsearch-${item.job_id || String(Math.random())}`,
+          source: "JSearch",
+          title: (item.job_title as string) || "Untitled Position",
+          company: (item.employer_name as string) || "Confidential",
+          location:
+            [item.job_city, item.job_state, item.job_country]
+              .filter(Boolean)
+              .join(", ") || (item.job_is_remote ? "Remote" : (location || "Location on request")),
+          workMode: item.job_is_remote ? "Remote" : "Onsite",
+          description: ((item.job_description as string) || "").slice(0, 300) + "…",
+          fullDescription: (item.job_description as string) || "",
+          postedDate: (item.job_posted_at_datetime_utc as string) || null,
+          applyLink: (item.job_apply_link as string) || null,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn(`[JSearch API] Query "${query}" failed:`, err);
+  }
   return jobs;
 }
 
@@ -190,94 +226,6 @@ Return a JSON object matching this schema:
 }
 
 /**
- * Fetch real jobs for a single query (tries Adzuna, then JSearch, then Remotive)
- */
-async function fetchRealJobsForQuery(
-  query: string,
-  location: string,
-  adzunaAppId?: string,
-  adzunaAppKey?: string,
-  jsearchKey?: string
-): Promise<RawJob[]> {
-  let jobs: RawJob[] = [];
-
-  // 1. Try Adzuna API if credentials are provided
-  if (adzunaAppId && adzunaAppKey && adzunaAppId !== "your_app_id_here") {
-    jobs = await fetchAdzunaJobs(query, location, adzunaAppId, adzunaAppKey);
-  }
-
-  // 2. Try JSearch if configured and Adzuna returned 0
-  if (jobs.length === 0 && jsearchKey && jsearchKey !== "your_jsearch_api_key_here") {
-    try {
-      const params = new URLSearchParams({
-        query: location ? `${query} in ${location}` : query,
-        num_pages: "1",
-        date_posted: "all",
-      });
-
-      const response = await fetch(`${JSEARCH_API_URL}?${params.toString()}`, {
-        method: "GET",
-        headers: {
-          "X-RapidAPI-Key": jsearchKey,
-          "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const apiData = data.data || [];
-        for (const item of apiData) {
-          jobs.push({
-            id: (item.job_id as string) || String(Math.random()),
-            title: (item.job_title as string) || "Untitled Position",
-            company: (item.employer_name as string) || "Confidential",
-            location:
-              [item.job_city, item.job_state, item.job_country]
-                .filter(Boolean)
-                .join(", ") || (item.job_is_remote ? "Remote" : (location || "Location on request")),
-            workMode: item.job_is_remote ? "Remote" : "Onsite",
-            description: ((item.job_description as string) || "").slice(0, 300) + "…",
-            fullDescription: (item.job_description as string) || "",
-            postedDate: (item.job_posted_at_datetime_utc as string) || null,
-            applyLink: (item.job_apply_link as string) || null,
-          });
-        }
-      }
-    } catch (err) {
-      console.warn(`JSearch query for "${query}" failed:`, err);
-    }
-  }
-
-  // 3. If still 0, search live open job feed for the exact query
-  if (jobs.length === 0) {
-    try {
-      const res = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=6`);
-      if (res.ok) {
-        const data = await res.json();
-        const remotiveJobs = data.jobs || [];
-        for (const item of remotiveJobs) {
-          jobs.push({
-            id: `remotive-${item.id}`,
-            title: item.title || "Specialist",
-            company: item.company_name || "Innovative Co.",
-            location: item.candidate_required_location || location || "Remote / Global",
-            workMode: "Remote",
-            description: (item.description ? item.description.replace(/<[^>]*>?/gm, "").slice(0, 300) : "") + "…",
-            fullDescription: item.description ? item.description.replace(/<[^>]*>?/gm, "") : "",
-            postedDate: item.publication_date || null,
-            applyLink: item.url || "https://remotive.com",
-          });
-        }
-      }
-    } catch (err) {
-      console.warn(`Live feed query for "${query}" failed:`, err);
-    }
-  }
-
-  return jobs;
-}
-
-/**
  * Step 2: AI-Powered Job Evaluator & Ranker
  * Strictly scores and writes bespoke whyMatch descriptions referencing specific duties.
  */
@@ -312,7 +260,7 @@ ${JSON.stringify(jobSummaries, null, 2)}
 Strict Instructions:
 1. Only rank and return jobs from the provided list above. Never invent jobs or IDs.
 2. Stricter Scoring Rule: Only assign a high matchScore (above 60) if there is a genuine, specific connection between the user's background/interests and the job's actual duties. If a job has little to no real relevance, assign an honest low matchScore (below 40) and clearly state why in whyMatch — do not force a generic positive explanation.
-3. Specific Reasoning Rule: Each "whyMatch" must reference SPECIFIC details from that job's actual description/duties (e.g. content creation, script writing, video hosting, software engineering requirements), NOT a generic templated sentence.
+3. Specific Reasoning Rule: Each "whyMatch" must reference SPECIFIC details from that job's actual description/duties (e.g. content creation, script writing, video hosting, entertainment coordination), NOT a generic templated sentence.
 4. Select and rank up to the top 5 most relevant jobs from this list, sorted highest matchScore first.
 
 Return a JSON array matching this schema:
@@ -371,7 +319,7 @@ Return a JSON array matching this schema:
             console.log("==================================================");
             console.log("[Gemini Ranking] Top ranked jobs with genuine AI scores and reasons:");
             rankedJobs.forEach((r, idx) => {
-              console.log(` #${idx + 1} [${r.matchScore}%] "${r.title}" at ${r.company}`);
+              console.log(` #${idx + 1} [${r.source}] [${r.matchScore}%] "${r.title}" at ${r.company}`);
               console.log(`    Why: ${r.whyMatch}`);
             });
             console.log("==================================================");
@@ -420,21 +368,69 @@ export async function GET(request: NextRequest) {
   const rawJobs: RawJob[] = [];
   const seenJobKeys = new Set<string>();
 
-  // 2. Fetch real jobs for each query
-  for (const query of searchQueries) {
-    const queryResults = await fetchRealJobsForQuery(query, location, adzunaAppId, adzunaAppKey, jsearchKey);
-    console.log(` -> Query "${query}" returned: ${queryResults.length} real jobs`);
-
-    for (const job of queryResults) {
-      const key = `${job.title.toLowerCase().trim()}|${job.company.toLowerCase().trim()}`;
+  // Helper to safely add unique jobs
+  const addUniqueJobs = (jobsToAdd: RawJob[]) => {
+    for (const job of jobsToAdd) {
+      const key = `${job.title.toLowerCase().replace(/[^a-z0-9]/g, "")}|${job.company.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
       if (!seenJobKeys.has(key)) {
         seenJobKeys.add(key);
         rawJobs.push(job);
       }
     }
+  };
+
+  // 2. Fetch real jobs from Adzuna AND JSearch in parallel for each query
+  for (const query of searchQueries) {
+    console.log(` -> Fetching query: "${query}"...`);
+
+    // Fetch from Adzuna
+    if (adzunaAppId && adzunaAppKey && adzunaAppId !== "your_app_id_here") {
+      const adzunaResults = await fetchAdzunaJobs(query, location, adzunaAppId, adzunaAppKey);
+      console.log(`    [Adzuna] "${query}" returned: ${adzunaResults.length} jobs`);
+      addUniqueJobs(adzunaResults);
+    }
+
+    // Fetch from JSearch
+    if (jsearchKey && jsearchKey !== "your_jsearch_api_key_here") {
+      const jsearchResults = await fetchJSearchJobs(query, location, jsearchKey);
+      console.log(`    [JSearch] "${query}" returned: ${jsearchResults.length} jobs`);
+      addUniqueJobs(jsearchResults);
+    }
   }
 
-  console.log(`[Search Summary] Total unique real jobs gathered: ${rawJobs.length}`);
+  // Fallback to Remotive live jobs if 0 jobs found across both sources
+  if (rawJobs.length === 0) {
+    for (const query of searchQueries) {
+      try {
+        const res = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=6`);
+        if (res.ok) {
+          const data = await res.json();
+          const remotiveJobs = (data.jobs || []).map((item: any) => ({
+            id: `remotive-${item.id}`,
+            source: "Remotive" as const,
+            title: item.title || "Specialist",
+            company: item.company_name || "Innovative Co.",
+            location: item.candidate_required_location || location || "Remote / Global",
+            workMode: "Remote",
+            description: (item.description ? item.description.replace(/<[^>]*>?/gm, "").slice(0, 300) : "") + "…",
+            fullDescription: item.description ? item.description.replace(/<[^>]*>?/gm, "") : "",
+            postedDate: item.publication_date || null,
+            applyLink: item.url || "https://remotive.com",
+          }));
+          addUniqueJobs(remotiveJobs);
+        }
+      } catch (err) {
+        console.warn(`[Remotive Feed] Query "${query}" failed:`, err);
+      }
+    }
+  }
+
+  // Pre-ranking logging of all combined jobs as requested
+  console.log("==================================================");
+  console.log(`[Combined Jobs Pre-Ranking] TOTAL count: ${rawJobs.length}`);
+  console.log("[Job Titles List (Combined Pool)]:\n" + 
+    rawJobs.map((j, i) => `  ${i + 1}. [${j.source}] "${j.title}" — ${j.company} (${j.location})`).join("\n")
+  );
   console.log("==================================================");
 
   if (rawJobs.length === 0) {
