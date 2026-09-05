@@ -420,6 +420,7 @@ function ResultsContent() {
   const location = searchParams.get("location") || "";
 
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [isUnconventionalField, setIsUnconventionalField] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -461,12 +462,15 @@ function ResultsContent() {
         if (!res.ok) {
           setError(data.error || "Failed to fetch jobs");
           setJobs([]);
+          setIsUnconventionalField(false);
         } else {
           setJobs(data.jobs || []);
+          setIsUnconventionalField(Boolean(data.isUnconventionalField));
         }
       } catch {
         setError("Network error — could not reach the server.");
         setJobs([]);
+        setIsUnconventionalField(false);
       } finally {
         setLoading(false);
       }
@@ -614,68 +618,71 @@ function ResultsContent() {
         </Link>
       </div>
 
-      {/* Career Roadmap Banner Card */}
-      <div className="mt-8 bg-gradient-to-r from-card to-accent/5 border border-border rounded-2xl p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🧭</span>
-              <h3 className="text-base font-semibold text-foreground">
-                Not finding traditional jobs?
-              </h3>
+      {/* ───── High-Prominence Career Roadmap Banner (if Unconventional/Gig Field) ───── */}
+      {isUnconventionalField && (
+        <div className="mt-8 bg-gradient-to-r from-accent/15 via-card to-accent/5 border-2 border-accent/40 rounded-2xl p-6 sm:p-7 shadow-lg relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="inline-flex items-center rounded-full bg-accent/20 text-accent px-3 py-1 text-xs font-semibold">
+              ✨ Recommended for this field
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mt-3">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🗺️</span>
+                <h3 className="text-lg font-bold text-foreground">
+                  Get a Career Roadmap for {interests || background}
+                </h3>
+              </div>
+              <p className="text-sm text-foreground/80 leading-relaxed max-w-lg">
+                This field often has fewer traditional 9-to-5 job postings — a personalized AI roadmap will guide you through gigs, monetization channels, platforms, and building a sustainable career in India.
+              </p>
             </div>
-            <p className="text-xs sm:text-sm text-muted">
-              Get an AI-powered roadmap to monetize and build a sustainable career in{" "}
-              <span className="text-foreground font-medium underline decoration-accent/50 underline-offset-2">
-                {interests || background || "your passion"}
-              </span>{" "}
-              in India.
-            </p>
+            <button
+              onClick={handleGenerateRoadmap}
+              disabled={roadmapLoading}
+              className="rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-60 text-white px-6 py-3 text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 flex-shrink-0 shadow-md hover:shadow-accent/20"
+            >
+              {roadmapLoading ? (
+                <>
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating Roadmap…
+                </>
+              ) : (
+                <>
+                  <span>View Career Roadmap</span>
+                  <span>➔</span>
+                </>
+              )}
+            </button>
           </div>
-          <button
-            onClick={handleGenerateRoadmap}
-            disabled={roadmapLoading}
-            className="rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-60 text-white px-5 py-2.5 text-sm font-medium transition-all cursor-pointer flex items-center justify-center gap-2 flex-shrink-0 shadow-sm"
-          >
-            {roadmapLoading ? (
-              <>
-                <svg
-                  className="animate-spin h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Creating Roadmap…
-              </>
-            ) : (
-              <>
-                <span>Get Career Roadmap</span>
-                <span>➔</span>
-              </>
-            )}
-          </button>
-        </div>
 
-        {roadmapError && (
-          <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 text-xs text-red-400">
-            {roadmapError}
-          </div>
-        )}
-      </div>
+          {roadmapError && (
+            <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 text-xs text-red-400">
+              {roadmapError}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ───── Recommended jobs ───── */}
       <h3 className="text-lg font-semibold text-foreground mt-10 mb-5">
@@ -911,6 +918,70 @@ function ResultsContent() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ───── Secondary / Standard Career Roadmap Banner (for Standard Fields) ───── */}
+      {!isUnconventionalField && !loading && (
+        <div className="mt-10 bg-card border border-border/90 rounded-2xl p-5 sm:p-6 text-card-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🧭</span>
+                <h4 className="text-sm font-semibold text-foreground">
+                  Want to explore alternate career growth or freelance paths?
+                </h4>
+              </div>
+              <p className="text-xs text-muted">
+                Generate an AI career roadmap to explore independent consulting, specialized niches, and skill progression in{" "}
+                <span className="text-foreground/90 font-medium">
+                  {interests || background || "your field"}
+                </span>.
+              </p>
+            </div>
+            <button
+              onClick={handleGenerateRoadmap}
+              disabled={roadmapLoading}
+              className="rounded-lg border border-border text-foreground/90 hover:bg-border/30 hover:border-foreground/30 px-4 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0"
+            >
+              {roadmapLoading ? (
+                <>
+                  <svg
+                    className="animate-spin h-3.5 w-3.5 text-foreground"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating Roadmap…
+                </>
+              ) : (
+                <>
+                  <span>Explore Career Roadmap</span>
+                  <span>➔</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {roadmapError && (
+            <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5 text-xs text-red-400">
+              {roadmapError}
+            </div>
+          )}
         </div>
       )}
 

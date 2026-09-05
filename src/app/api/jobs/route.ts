@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const JSEARCH_API_URL = "https://jsearch.p.rapidapi.com/search";
-const GEMINI_MODELS = ["gemini-3.6-flash"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite"];
 
 interface RawJob {
   id: string;
@@ -24,6 +24,11 @@ interface GeminiRankResult {
   id: string;
   matchScore: number;
   whyMatch: string;
+}
+
+interface GeneratedQueriesResult {
+  queries: string[];
+  isUnconventionalField: boolean;
 }
 
 /**
@@ -157,20 +162,24 @@ async function fetchJSearchJobs(
 
 /**
  * Step 1: AI Query Generator
- * Generates 4-5 diverse, realistic search queries using Gemini 3.6 Flash.
+ * Generates 5-6 layered search queries and assesses if the field is unconventional using Gemini.
  */
 async function generateSearchQueriesWithGemini(
   background: string,
   interests: string,
   apiKey: string
-): Promise<string[]> {
-  const prompt = `Based on this person's background and interests, think broadly and creatively about REAL, commonly-searchable job titles and industries that could genuinely suit them — including adjacent/related fields, not just the literal activity. For example, someone who loves making people laugh and standup comedy could suit: content creator, social media manager, event host, comedy writer, public speaking trainer, voice artist, entertainment coordinator. Generate 4-5 diverse, realistic job search query strings (real job titles, not made-up ones).
+): Promise<GeneratedQueriesResult> {
+  const prompt = `Based on this person's background: '${background || "Open"}' and interests: '${interests || "Open"}', generate job search queries using this layered approach:
 
-Person's Background: ${background || "Open"}
-Person's Interests: ${interests || "Open"}
+LITERAL: First, identify 1-2 precise, industry-standard job titles that directly and literally match this exact skill/interest (e.g., if the interest is photography, use 'photographer' or 'photojournalist' — not a generic substitute).
+ADJACENT: Then, identify 2-3 related/adjacent job titles in formal industries that commonly use this same core skill (e.g., for photography: 'content creator,' 'photo editor'; for comedy: 'copywriter,' 'video scriptwriter').
+GIG/FREELANCE: Consider whether this interest is more commonly pursued as freelance, gig, or event-based work in India rather than formal employment (e.g., wedding photography, standup comedy at events, freelance illustration). If so, include realistic gig-oriented search terms too (e.g., 'freelance photographer,' 'event photographer').
 
-Return a JSON object matching this schema:
-{ "queries": ["query1", "query2", "query3", "query4", "query5"] }`;
+Generate a total of 5-6 diverse queries spanning these layers — do NOT default only to generic/adjacent terms if precise literal job titles exist for the skill.
+
+Additionally, assess: is this interest likely to be an emerging, unconventional, or gig-economy-driven field in India with LIMITED formal job postings (like standup comedy, street photography, podcasting, art therapy, etc.)? Return this as a boolean field isUnconventionalField in your response.
+
+Return ONLY valid JSON: { "queries": ["query1", "query2", ...], "isUnconventionalField": true/false }`;
 
   for (const model of GEMINI_MODELS) {
     try {
@@ -182,8 +191,8 @@ Return a JSON object matching this schema:
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.3,
-              maxOutputTokens: 500,
+              temperature: 0.2,
+              maxOutputTokens: 800,
               responseMimeType: "application/json",
             },
           }),
@@ -206,12 +215,17 @@ Return a JSON object matching this schema:
           const valid = parsed.queries.filter(
             (q: unknown): q is string => typeof q === "string" && q.trim().length > 0
           );
+          const isUnconventional = Boolean(parsed.isUnconventionalField);
           if (valid.length > 0) {
             console.log("==================================================");
             console.log(`[Gemini Query Generation] Input: Background="${background}", Interests="${interests}"`);
             console.log("[Gemini Query Generation] Generated queries:", valid);
+            console.log(`[Gemini Query Generation] isUnconventionalField: ${isUnconventional}`);
             console.log("==================================================");
-            return valid;
+            return {
+              queries: valid,
+              isUnconventionalField: isUnconventional,
+            };
           }
         }
       } else {
@@ -223,20 +237,39 @@ Return a JSON object matching this schema:
     }
   }
 
-  // Intelligent domain fallback if Gemini is rate limited
+  // Intelligent domain fallback if Gemini is rate limited or offline
   const text = `${background} ${interests}`.toLowerCase();
-  if (text.includes("laugh") || text.includes("comedy") || text.includes("standup") || text.includes("humor")) {
-    return ["Comedy Writer", "Creative Copywriter", "Content Creator", "Event Host", "Voice Actor"];
-  }
-  if (text.includes("react") || text.includes("developer") || text.includes("software") || text.includes("code")) {
-    return ["Frontend Developer", "React Developer", "Software Engineer", "Web Developer"];
-  }
-  if (text.includes("design") || text.includes("draw") || text.includes("fabric") || text.includes("art")) {
-    return ["Fashion Designer", "Textile Designer", "Graphic Designer", "Product Designer"];
+  let isUnconventional = false;
+  let queries: string[] = [];
+
+  if (text.includes("photo") || text.includes("camera") || text.includes("picture") || text.includes("lens")) {
+    isUnconventional = true;
+    queries = ["Photographer", "Photojournalist", "Freelance Photographer", "Photo Editor", "Content Creator", "Event Photographer"];
+  } else if (text.includes("laugh") || text.includes("comedy") || text.includes("standup") || text.includes("humor")) {
+    isUnconventional = true;
+    queries = ["Standup Comedian", "Comedy Writer", "Creative Copywriter", "Event Host", "Content Creator", "Video Scriptwriter"];
+  } else if (text.includes("account") || text.includes("finance") || text.includes("number") || text.includes("tax") || text.includes("audit")) {
+    isUnconventional = false;
+    queries = ["Accountant", "Junior Accountant", "Accounts Executive", "Financial Analyst", "Tax Associate", "Audit Assistant"];
+  } else if (text.includes("react") || text.includes("developer") || text.includes("software") || text.includes("code") || text.includes("engineer")) {
+    isUnconventional = false;
+    queries = ["Frontend Developer", "React Developer", "Software Engineer", "Web Developer", "Full Stack Developer"];
+  } else if (text.includes("potter") || text.includes("ceramic") || text.includes("clay") || text.includes("sculpt") || text.includes("art therapy") || text.includes("podcast")) {
+    isUnconventional = true;
+    queries = ["Ceramic Artist", "Studio Potter", "Craft Instructor", "Product Designer", "Workshop Facilitator"];
+  } else {
+    isUnconventional = false;
+    const rawFallback = [background, interests].filter(Boolean).join(" ") || "general";
+    queries = [rawFallback, "Content Creator", "Project Coordinator", "Associate"];
   }
 
-  const rawFallback = [background, interests].filter(Boolean).join(" ") || "general";
-  return [rawFallback, "Content Creator", "Project Coordinator"];
+  console.log("==================================================");
+  console.log(`[Query Generation (Fallback)] Input: Background="${background}", Interests="${interests}"`);
+  console.log("[Query Generation (Fallback)] Generated queries:", queries);
+  console.log(`[Query Generation (Fallback)] isUnconventionalField: ${isUnconventional}`);
+  console.log("==================================================");
+
+  return { queries, isUnconventionalField: isUnconventional };
 }
 
 /**
@@ -400,14 +433,17 @@ export async function GET(request: NextRequest) {
   console.log("==================================================");
   console.log(`[Job Search Request] Background: "${background}" | Interests: "${interests}" | Location: "${location}"`);
 
-  // 1. Generate 4-5 targeted search queries with Gemini 3.6 Flash
-  let searchQueries: string[] = [];
+  // 1. Generate 5-6 layered search queries with Gemini
+  let searchResult: GeneratedQueriesResult = {
+    queries: [[background, interests].filter(Boolean).join(" ") || "general"],
+    isUnconventionalField: false,
+  };
+
   if (geminiKey && geminiKey !== "your_key_here") {
-    searchQueries = await generateSearchQueriesWithGemini(background, interests, geminiKey);
-  } else {
-    searchQueries = [[background, interests].filter(Boolean).join(" ") || "general"];
+    searchResult = await generateSearchQueriesWithGemini(background, interests, geminiKey);
   }
 
+  const searchQueries = searchResult.queries;
   const rawJobs: RawJob[] = [];
   const seenJobKeys = new Set<string>();
 
@@ -477,7 +513,10 @@ export async function GET(request: NextRequest) {
   console.log("==================================================");
 
   if (rawJobs.length === 0) {
-    return NextResponse.json({ jobs: [] });
+    return NextResponse.json({
+      jobs: [],
+      isUnconventionalField: searchResult.isUnconventionalField,
+    });
   }
 
   // 3. AI Semantic Ranking with Gemini
@@ -492,5 +531,8 @@ export async function GET(request: NextRequest) {
     }));
   }
 
-  return NextResponse.json({ jobs: finalJobs });
+  return NextResponse.json({
+    jobs: finalJobs,
+    isUnconventionalField: searchResult.isUnconventionalField,
+  });
 }
