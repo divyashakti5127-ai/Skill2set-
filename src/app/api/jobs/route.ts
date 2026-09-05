@@ -24,6 +24,98 @@ interface GeminiRankResult {
 }
 
 /**
+ * Maps location text to Adzuna supported country code
+ */
+function getCountryCode(location: string): string {
+  const loc = (location || "").toLowerCase();
+  if (loc.includes("united states") || loc.includes("usa") || loc.includes("us") || loc.includes("america")) return "us";
+  if (loc.includes("united kingdom") || loc.includes("uk") || loc.includes("london") || loc.includes("england") || loc.includes("britain")) return "gb";
+  if (loc.includes("canada") || loc.includes("toronto") || loc.includes("vancouver")) return "ca";
+  if (loc.includes("australia") || loc.includes("sydney") || loc.includes("melbourne")) return "au";
+  if (loc.includes("germany") || loc.includes("deutschland") || loc.includes("berlin") || loc.includes("munich")) return "de";
+  if (loc.includes("france") || loc.includes("paris")) return "fr";
+  if (loc.includes("singapore")) return "sg";
+  return "in"; // default to India
+}
+
+/**
+ * Fetch jobs directly from Adzuna API with detailed masked debug logging
+ */
+async function fetchAdzunaJobs(
+  query: string,
+  location: string,
+  appId: string,
+  appKey: string
+): Promise<RawJob[]> {
+  const country = getCountryCode(location);
+  const maskedAppId = appId ? `${appId.slice(0, 4)}...` : "UNDEFINED";
+  const maskedAppKey = appKey ? `${appKey.slice(0, 4)}...` : "UNDEFINED";
+
+  console.log("==================================================");
+  console.log("[Adzuna Config Runtime]");
+  console.log(`process.env.ADZUNA_APP_ID: "${maskedAppId}"`);
+  console.log(`process.env.ADZUNA_APP_KEY: "${maskedAppKey}"`);
+
+  const params = new URLSearchParams({
+    app_id: appId,
+    app_key: appKey,
+    what: query,
+    results_per_page: "10",
+    "content-type": "application/json",
+  });
+
+  if (location) {
+    params.set("where", location);
+  }
+
+  const requestUrl = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
+  const maskedUrl = requestUrl.replace(appKey, maskedAppKey);
+
+  console.log(`[Adzuna Request URL]: ${maskedUrl}`);
+
+  const jobs: RawJob[] = [];
+
+  try {
+    const response = await fetch(requestUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const responseStatus = response.status;
+    const responseText = await response.text();
+
+    console.log(`[Adzuna Response Status]: ${responseStatus}`);
+    console.log(`[Adzuna Raw Response Body]: ${responseText.slice(0, 500)}${responseText.length > 500 ? "..." : ""}`);
+    console.log("==================================================");
+
+    if (response.ok) {
+      const data = JSON.parse(responseText);
+      const results = data.results || [];
+      for (const item of results) {
+        jobs.push({
+          id: `adzuna-${item.id}`,
+          title: item.title ? item.title.replace(/<[^>]*>?/gm, "") : "Untitled",
+          company: item.company?.display_name || "Company",
+          location: item.location?.display_name || location || "Not specified",
+          workMode: item.contract_time === "full_time" ? "Full-time" : "Standard",
+          description: (item.description ? item.description.replace(/<[^>]*>?/gm, "").slice(0, 300) : "") + "…",
+          fullDescription: item.description ? item.description.replace(/<[^>]*>?/gm, "") : "",
+          postedDate: item.created || null,
+          applyLink: item.redirect_url || null,
+        });
+      }
+    }
+  } catch (err: any) {
+    console.error("[Adzuna Fetch Exception]:", err.message || err);
+    console.log("==================================================");
+  }
+
+  return jobs;
+}
+
+/**
  * Step 1: AI Query Generator
  * Generates 4-5 diverse, realistic search queries using Gemini 3.6 Flash.
  */
@@ -98,17 +190,24 @@ Return a JSON object matching this schema:
 }
 
 /**
- * Fetch real jobs for a single query from JSearch (with live open-job feed fallback)
+ * Fetch real jobs for a single query (tries Adzuna, then JSearch, then Remotive)
  */
 async function fetchRealJobsForQuery(
   query: string,
   location: string,
+  adzunaAppId?: string,
+  adzunaAppKey?: string,
   jsearchKey?: string
 ): Promise<RawJob[]> {
-  const jobs: RawJob[] = [];
+  let jobs: RawJob[] = [];
 
-  // 1. Try JSearch if configured
-  if (jsearchKey && jsearchKey !== "your_jsearch_api_key_here") {
+  // 1. Try Adzuna API if credentials are provided
+  if (adzunaAppId && adzunaAppKey && adzunaAppId !== "your_app_id_here") {
+    jobs = await fetchAdzunaJobs(query, location, adzunaAppId, adzunaAppKey);
+  }
+
+  // 2. Try JSearch if configured and Adzuna returned 0
+  if (jobs.length === 0 && jsearchKey && jsearchKey !== "your_jsearch_api_key_here") {
     try {
       const params = new URLSearchParams({
         query: location ? `${query} in ${location}` : query,
@@ -149,7 +248,7 @@ async function fetchRealJobsForQuery(
     }
   }
 
-  // 2. If JSearch returned 0, search live open job feed for the exact query
+  // 3. If still 0, search live open job feed for the exact query
   if (jobs.length === 0) {
     try {
       const res = await fetch(`https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=6`);
@@ -302,6 +401,8 @@ export async function GET(request: NextRequest) {
   const interests = searchParams.get("interests") || "";
   const location = searchParams.get("location") || "";
 
+  const adzunaAppId = process.env.ADZUNA_APP_ID;
+  const adzunaAppKey = process.env.ADZUNA_APP_KEY;
   const jsearchKey = process.env.JSEARCH_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -321,7 +422,7 @@ export async function GET(request: NextRequest) {
 
   // 2. Fetch real jobs for each query
   for (const query of searchQueries) {
-    const queryResults = await fetchRealJobsForQuery(query, location, jsearchKey);
+    const queryResults = await fetchRealJobsForQuery(query, location, adzunaAppId, adzunaAppKey, jsearchKey);
     console.log(` -> Query "${query}" returned: ${queryResults.length} real jobs`);
 
     for (const job of queryResults) {
