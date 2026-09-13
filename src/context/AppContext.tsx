@@ -38,6 +38,10 @@ interface AppContextType {
   removeSavedJob: (id: string) => void;
   updateJobStatus: (id: string, status: ApplicationStage) => void;
   updateJobNotes: (id: string, notes: string) => void;
+  updateInterviewDetails: (
+    id: string,
+    details: { interviewDate?: string; interviewType?: string; interviewNotes?: string; status?: ApplicationStage }
+  ) => void;
   isJobSaved: (id: string) => boolean;
 
   savedRoadmaps: SavedRoadmap[];
@@ -175,6 +179,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveStoredSavedJobs(updated);
   };
 
+  const updateInterviewDetails = (
+    id: string,
+    details: { interviewDate?: string; interviewType?: string; interviewNotes?: string; status?: ApplicationStage }
+  ) => {
+    const updated = savedJobs.map((j) =>
+      j.id === id
+        ? {
+            ...j,
+            ...(details.status ? { status: details.status } : {}),
+            ...(details.interviewDate !== undefined ? { interviewDate: details.interviewDate } : {}),
+            ...(details.interviewType !== undefined ? { interviewType: details.interviewType } : {}),
+            ...(details.interviewNotes !== undefined ? { interviewNotes: details.interviewNotes } : {}),
+          }
+        : j
+    );
+    setSavedJobs(updated);
+    saveStoredSavedJobs(updated);
+  };
+
   /* ───── Saved Roadmaps & Checklists ───── */
 
   const isRoadmapSaved = (field: string) =>
@@ -253,6 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         removeSavedJob,
         updateJobStatus,
         updateJobNotes,
+        updateInterviewDetails,
         isJobSaved,
         savedRoadmaps,
         saveRoadmap,

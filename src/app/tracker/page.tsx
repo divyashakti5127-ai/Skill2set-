@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { ApplicationStage, SavedJob } from "@/lib/storage";
 import ApplicationKitModal, { ApplicationKitData } from "@/components/ApplicationKitModal";
 import ApplyConfirmationModal from "@/components/ApplyConfirmationModal";
+import InterviewDetailsModal from "@/components/InterviewDetailsModal";
 
 const STAGES: { id: ApplicationStage; title: string; icon: string; badgeColor: string }[] = [
   { id: "saved", title: "Saved / Backlog", icon: "📌", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
@@ -15,10 +16,20 @@ const STAGES: { id: ApplicationStage; title: string; icon: string; badgeColor: s
 ];
 
 export default function TrackerPage() {
-  const { savedJobs, updateJobStatus, updateJobNotes, removeSavedJob, activeProfile } = useApp();
+  const {
+    savedJobs,
+    updateJobStatus,
+    updateJobNotes,
+    updateInterviewDetails,
+    removeSavedJob,
+    activeProfile,
+  } = useApp();
   const [activeKitData, setActiveKitData] = useState<ApplicationKitData | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+
+  // Interview modal state
+  const [interviewModalJob, setInterviewModalJob] = useState<SavedJob | null>(null);
 
   // Post-apply prompt & 8s countdown states
   const [confirmModalJob, setConfirmModalJob] = useState<SavedJob | null>(null);
@@ -91,6 +102,24 @@ export default function TrackerPage() {
 
   const handleNotYet = () => {
     setConfirmModalJob(null);
+  };
+
+  // Interview modal handlers
+  const handleOpenInterviewModal = (job: SavedJob) => {
+    setInterviewModalJob(job);
+  };
+
+  const handleSaveInterviewDetails = (details: {
+    interviewDate: string;
+    interviewType: string;
+    interviewNotes: string;
+  }) => {
+    if (!interviewModalJob) return;
+    updateInterviewDetails(interviewModalJob.id, {
+      ...details,
+      status: "interview",
+    });
+    setInterviewModalJob(null);
   };
 
   const handleOpenKit = async (job: SavedJob) => {
@@ -219,6 +248,47 @@ export default function TrackerPage() {
                             <span>⚡ Gap:</span> {job.missingSkills[0]?.skill}
                           </p>
                         </div>
+                      )}
+
+                      {/* Interview Scheduled Badge (Shown in Interviewing stage or if interview details exist) */}
+                      {job.status === "interview" && (
+                        <div className="mb-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-2.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
+                              <span>📅</span>
+                              {job.interviewDate
+                                ? `Interview: ${new Date(job.interviewDate).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}${job.interviewType ? ` • ${job.interviewType}` : ""}`
+                                : job.interviewType
+                                ? `${job.interviewType} scheduled`
+                                : "Interview Scheduled"}
+                            </span>
+                            <button
+                              onClick={() => handleOpenInterviewModal(job)}
+                              className="text-[10px] text-amber-400 hover:text-amber-300 hover:underline font-semibold cursor-pointer"
+                            >
+                              Edit ✏️
+                            </button>
+                          </div>
+                          {job.interviewNotes && (
+                            <p className="text-[11px] text-muted/90 mt-1.5 italic line-clamp-2">
+                              💬 {job.interviewNotes}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Prominent "Got Interview Call?" Button on Applied Cards */}
+                      {job.status === "applied" && (
+                        <button
+                          onClick={() => handleOpenInterviewModal(job)}
+                          className="w-full mb-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold py-2.5 px-3 text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                        >
+                          <span>🎯</span>
+                          <span>Got Interview Call?</span>
+                        </button>
                       )}
 
                       {/* Notes snippet or editor */}
@@ -372,6 +442,16 @@ export default function TrackerPage() {
           onClose={() => setConfirmModalJob(null)}
           onConfirmApplied={handleConfirmApplied}
           onNotYet={handleNotYet}
+        />
+      )}
+
+      {/* Interview Details Modal */}
+      {interviewModalJob && (
+        <InterviewDetailsModal
+          job={interviewModalJob}
+          isOpen={!!interviewModalJob}
+          onClose={() => setInterviewModalJob(null)}
+          onSave={handleSaveInterviewDetails}
         />
       )}
 

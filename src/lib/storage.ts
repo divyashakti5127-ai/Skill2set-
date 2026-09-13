@@ -42,6 +42,8 @@ export interface SavedJob {
   notes?: string;
   appliedDate?: string;
   interviewDate?: string;
+  interviewType?: string;
+  interviewNotes?: string;
   savedAt: string;
 }
 
