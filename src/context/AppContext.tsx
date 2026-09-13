@@ -42,6 +42,7 @@ interface AppContextType {
     id: string,
     details: { interviewDate?: string; interviewType?: string; interviewNotes?: string; status?: ApplicationStage }
   ) => void;
+  updateSavedJob: (id: string, updates: Partial<SavedJob>) => void;
   isJobSaved: (id: string) => boolean;
 
   savedRoadmaps: SavedRoadmap[];
@@ -138,64 +139,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const isJobSaved = (id: string) => savedJobs.some((j) => j.id === id);
 
   const saveJob = (job: Omit<SavedJob, "status" | "savedAt">) => {
-    if (isJobSaved(job.id)) {
-      // Remove if already saved (toggle behaviour)
-      removeSavedJob(job.id);
-      return;
-    }
-    const newSavedJob: SavedJob = {
-      ...job,
-      status: "saved",
-      savedAt: new Date().toISOString(),
-    };
-    const updated = [newSavedJob, ...savedJobs];
-    setSavedJobs(updated);
-    saveStoredSavedJobs(updated);
+    setSavedJobs((prev) => {
+      if (prev.some((j) => j.id === job.id)) {
+        const updated = prev.filter((j) => j.id !== job.id);
+        saveStoredSavedJobs(updated);
+        return updated;
+      }
+      const newSavedJob: SavedJob = {
+        ...job,
+        status: "saved",
+        savedAt: new Date().toISOString(),
+      };
+      const updated = [newSavedJob, ...prev];
+      saveStoredSavedJobs(updated);
+      return updated;
+    });
   };
 
   const removeSavedJob = (id: string) => {
-    const updated = savedJobs.filter((j) => j.id !== id);
-    setSavedJobs(updated);
-    saveStoredSavedJobs(updated);
+    setSavedJobs((prev) => {
+      const updated = prev.filter((j) => j.id !== id);
+      saveStoredSavedJobs(updated);
+      return updated;
+    });
   };
 
   const updateJobStatus = (id: string, status: ApplicationStage) => {
-    const updated = savedJobs.map((j) =>
-      j.id === id
-        ? {
-            ...j,
-            status,
-            appliedDate: status === "applied" && !j.appliedDate ? new Date().toISOString() : j.appliedDate,
-          }
-        : j
-    );
-    setSavedJobs(updated);
-    saveStoredSavedJobs(updated);
+    setSavedJobs((prev) => {
+      const updated = prev.map((j) =>
+        j.id === id
+          ? {
+              ...j,
+              status,
+              appliedDate: status === "applied" && !j.appliedDate ? new Date().toISOString() : j.appliedDate,
+            }
+          : j
+      );
+      saveStoredSavedJobs(updated);
+      return updated;
+    });
   };
 
   const updateJobNotes = (id: string, notes: string) => {
-    const updated = savedJobs.map((j) => (j.id === id ? { ...j, notes } : j));
-    setSavedJobs(updated);
-    saveStoredSavedJobs(updated);
+    setSavedJobs((prev) => {
+      const updated = prev.map((j) => (j.id === id ? { ...j, notes } : j));
+      saveStoredSavedJobs(updated);
+      return updated;
+    });
   };
 
   const updateInterviewDetails = (
     id: string,
     details: { interviewDate?: string; interviewType?: string; interviewNotes?: string; status?: ApplicationStage }
   ) => {
-    const updated = savedJobs.map((j) =>
-      j.id === id
-        ? {
-            ...j,
-            ...(details.status ? { status: details.status } : {}),
-            ...(details.interviewDate !== undefined ? { interviewDate: details.interviewDate } : {}),
-            ...(details.interviewType !== undefined ? { interviewType: details.interviewType } : {}),
-            ...(details.interviewNotes !== undefined ? { interviewNotes: details.interviewNotes } : {}),
-          }
-        : j
-    );
-    setSavedJobs(updated);
-    saveStoredSavedJobs(updated);
+    setSavedJobs((prev) => {
+      const updated = prev.map((j) =>
+        j.id === id
+          ? {
+              ...j,
+              ...(details.status ? { status: details.status } : {}),
+              ...(details.interviewDate !== undefined ? { interviewDate: details.interviewDate } : {}),
+              ...(details.interviewType !== undefined ? { interviewType: details.interviewType } : {}),
+              ...(details.interviewNotes !== undefined ? { interviewNotes: details.interviewNotes } : {}),
+            }
+          : j
+      );
+      saveStoredSavedJobs(updated);
+      return updated;
+    });
+  };
+
+  const updateSavedJob = (id: string, updates: Partial<SavedJob>) => {
+    setSavedJobs((prev) => {
+      const updated = prev.map((j) =>
+        j.id === id
+          ? {
+              ...j,
+              ...updates,
+              appliedDate:
+                updates.status === "applied" && !j.appliedDate && !updates.appliedDate
+                  ? new Date().toISOString()
+                  : updates.appliedDate !== undefined
+                  ? updates.appliedDate
+                  : j.appliedDate,
+            }
+          : j
+      );
+      saveStoredSavedJobs(updated);
+      return updated;
+    });
   };
 
   /* ───── Saved Roadmaps & Checklists ───── */
@@ -211,51 +243,57 @@ export function AppProvider({ children }: { children: ReactNode }) {
     roadmap: SavedRoadmap["roadmap"];
     completedSteps?: number[];
   }) => {
-    const existing = getSavedRoadmapByField(data.field);
-    let updated: SavedRoadmap[];
-    if (existing) {
-      updated = savedRoadmaps.map((r) =>
-        r.id === existing.id
-          ? {
-              ...r,
-              roadmap: data.roadmap,
-              completedSteps: data.completedSteps || r.completedSteps,
-            }
-          : r
-      );
-    } else {
-      const newRoadmap: SavedRoadmap = {
-        id: `roadmap-${Date.now()}`,
-        field: data.field,
-        roadmap: data.roadmap,
-        completedSteps: data.completedSteps || [],
-        savedAt: new Date().toISOString(),
-      };
-      updated = [newRoadmap, ...savedRoadmaps];
-    }
-    setSavedRoadmaps(updated);
-    saveStoredSavedRoadmaps(updated);
+    setSavedRoadmaps((prev) => {
+      const existing = prev.find((r) => r.field.toLowerCase() === data.field.toLowerCase());
+      let updated: SavedRoadmap[];
+      if (existing) {
+        updated = prev.map((r) =>
+          r.id === existing.id
+            ? {
+                ...r,
+                roadmap: data.roadmap,
+                completedSteps: data.completedSteps || r.completedSteps,
+              }
+            : r
+        );
+      } else {
+        const newRoadmap: SavedRoadmap = {
+          id: `roadmap-${Date.now()}`,
+          field: data.field,
+          roadmap: data.roadmap,
+          completedSteps: data.completedSteps || [],
+          savedAt: new Date().toISOString(),
+        };
+        updated = [newRoadmap, ...prev];
+      }
+      saveStoredSavedRoadmaps(updated);
+      return updated;
+    });
   };
 
   const toggleRoadmapStep = (roadmapId: string, stepIndex: number) => {
-    const updated = savedRoadmaps.map((r) => {
-      if (r.id === roadmapId) {
-        const has = r.completedSteps.includes(stepIndex);
-        const steps = has
-          ? r.completedSteps.filter((s) => s !== stepIndex)
-          : [...r.completedSteps, stepIndex].sort((a, b) => a - b);
-        return { ...r, completedSteps: steps };
-      }
-      return r;
+    setSavedRoadmaps((prev) => {
+      const updated = prev.map((r) => {
+        if (r.id === roadmapId) {
+          const has = r.completedSteps.includes(stepIndex);
+          const steps = has
+            ? r.completedSteps.filter((s) => s !== stepIndex)
+            : [...r.completedSteps, stepIndex].sort((a, b) => a - b);
+          return { ...r, completedSteps: steps };
+        }
+        return r;
+      });
+      saveStoredSavedRoadmaps(updated);
+      return updated;
     });
-    setSavedRoadmaps(updated);
-    saveStoredSavedRoadmaps(updated);
   };
 
   const removeSavedRoadmap = (id: string) => {
-    const updated = savedRoadmaps.filter((r) => r.id !== id);
-    setSavedRoadmaps(updated);
-    saveStoredSavedRoadmaps(updated);
+    setSavedRoadmaps((prev) => {
+      const updated = prev.filter((r) => r.id !== id);
+      saveStoredSavedRoadmaps(updated);
+      return updated;
+    });
   };
 
   return (
@@ -277,6 +315,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateJobStatus,
         updateJobNotes,
         updateInterviewDetails,
+        updateSavedJob,
         isJobSaved,
         savedRoadmaps,
         saveRoadmap,

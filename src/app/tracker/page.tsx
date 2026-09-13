@@ -21,6 +21,7 @@ export default function TrackerPage() {
     updateJobStatus,
     updateJobNotes,
     updateInterviewDetails,
+    updateSavedJob,
     removeSavedJob,
     activeProfile,
   } = useApp();
@@ -114,7 +115,6 @@ export default function TrackerPage() {
   };
 
   const handleConfirmApplied = (job: SavedJob, noteType: "just_applied" | "already_applied") => {
-    updateJobStatus(job.id, "applied");
     const dateFormatted = new Date().toLocaleDateString("en-IN", {
       day: "numeric",
       month: "short",
@@ -125,7 +125,12 @@ export default function TrackerPage() {
         ? `Applied via official portal on ${dateFormatted}`
         : `Previously applied via official portal`;
     const updatedNotes = job.notes ? `${job.notes}\n• ${noteLine}` : `• ${noteLine}`;
-    updateJobNotes(job.id, updatedNotes);
+
+    updateSavedJob(job.id, {
+      status: "applied",
+      appliedDate: new Date().toISOString(),
+      notes: updatedNotes,
+    });
     setConfirmModalJob(null);
   };
 
