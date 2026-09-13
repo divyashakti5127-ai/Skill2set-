@@ -303,7 +303,7 @@ export default function SavedPage() {
                     href="/tracker"
                     className="rounded-xl bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 text-amber-300 font-semibold px-3.5 py-1.5 text-xs transition-colors"
                   >
-                    View in Pipeline ➔
+                    View in Job Status ➔
                   </Link>
                   {job.applyLink && (
                     <a

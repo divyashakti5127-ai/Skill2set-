@@ -54,7 +54,7 @@ export default function ApplyConfirmationModal({
             <p className="text-[11px] text-muted mt-1">📍 {job.location} · {job.workMode}</p>
           </div>
           <p className="text-xs text-muted/90 mt-3 leading-relaxed">
-            Updating this moves your card to the <span className="text-amber-300 font-semibold">"Applied"</span> stage and records the date in your pipeline.
+            Updating this moves your card to the <span className="text-amber-300 font-semibold">"Applied"</span> stage and records the date in your job status tracker.
           </p>
         </div>
 

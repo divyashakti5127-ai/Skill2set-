@@ -825,7 +825,7 @@ function ResultsContent() {
                       {isExpanded ? "Collapse details ▲" : "View details ▼"}
                     </button>
 
-                    {/* Bookmark / Save to Pipeline */}
+                    {/* Bookmark / Save to Job Status */}
                     <button
                       onClick={() => saveJob(job)}
                       className={`rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -834,7 +834,7 @@ function ResultsContent() {
                           : "bg-background/80 text-muted border-border hover:text-foreground hover:border-amber-500/30"
                       }`}
                     >
-                      {isSaved ? "★ Saved in Pipeline" : "☆ Save Job"}
+                      {isSaved ? "★ Saved in Job Status" : "☆ Save Job"}
                     </button>
                   </div>
 

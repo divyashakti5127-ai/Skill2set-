@@ -48,7 +48,7 @@ export default function HeaderNav() {
                 : "text-muted hover:text-foreground hover:bg-slate-800/40"
             }`}
           >
-            <span>Pipeline</span>
+            <span>Job Status</span>
             {savedJobs.length > 0 && (
               <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold flex items-center justify-center">
                 {savedJobs.length}

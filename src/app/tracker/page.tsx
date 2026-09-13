@@ -207,10 +207,10 @@ export default function TrackerPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-400 mb-2">
-            <span>📊</span> Kanban Application Pipeline
+            <span>📊</span> Kanban Job Status Tracker
           </div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-foreground tracking-tight">
-            Application Tracker
+            Job Status Tracker
           </h2>
           <p className="text-sm text-muted mt-1">
             Track your job applications, notes, and interview progress in one unified board.
