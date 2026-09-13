@@ -7,10 +7,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function HeaderNav() {
   const pathname = usePathname();
-  const { user, setLoginModalOpen, savedJobs, savedRoadmaps } = useApp();
-
-  const activeApplicationsCount = savedJobs.filter((j) => j.status !== "saved").length;
-  const totalSavedCount = savedJobs.length + savedRoadmaps.length;
+  const { savedJobs, savedRoadmaps } = useApp();
 
   return (
     <header className="border-b border-border/80 bg-card/70 backdrop-blur-md sticky top-0 z-40">
@@ -30,7 +27,7 @@ export default function HeaderNav() {
           </div>
         </Link>
 
-        {/* Navigation Links & User Profile */}
+        {/* Navigation Links */}
         <div className="flex items-center gap-2 sm:gap-4">
           <Link
             href="/"
@@ -74,19 +71,6 @@ export default function HeaderNav() {
               </span>
             )}
           </Link>
-
-          {/* Account Profile Trigger */}
-          <button
-            onClick={() => setLoginModalOpen(true)}
-            className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-border/80 text-left cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-xl bg-slate-800 border border-border group-hover:border-amber-500/50 flex items-center justify-center text-xs font-bold text-amber-300 transition-colors">
-              {user.avatarText || "SS"}
-            </div>
-            <span className="text-xs font-semibold text-foreground hidden sm:block group-hover:text-amber-400 transition-colors">
-              {user.name.split(" ")[0]}
-            </span>
-          </button>
         </div>
       </div>
     </header>
