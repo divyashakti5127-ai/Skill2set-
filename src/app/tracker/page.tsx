@@ -74,6 +74,16 @@ export default function TrackerPage() {
   };
 
   const handleApplyClick = (job: SavedJob) => {
+    // If the job is already past "saved" (Applied, Interviewing, Offer):
+    // Only open the official portal link without showing confirmation popup
+    if (job.status !== "saved") {
+      if (job.applyLink) {
+        window.open(job.applyLink, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
+    // When job is in "Saved / Backlog":
     if (testMode) {
       // In Test Mode: Skip opening real link and directly show confirmation popup
       clearPendingTimer();
