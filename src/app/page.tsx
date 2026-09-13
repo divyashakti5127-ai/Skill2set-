@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
+import SaveProfilePromptModal from "@/components/SaveProfilePromptModal";
 
 export default function HomePage() {
   const router = useRouter();
+  const { activeProfile, saveProfile } = useApp();
 
   const [goodAt, setGoodAt] = useState("");
   const [interests, setInterests] = useState("");
@@ -15,6 +18,21 @@ export default function HomePage() {
   const [experience, setExperience] = useState("");
   const [workMode, setWorkMode] = useState("");
   const [minSalary, setMinSalary] = useState("");
+
+  // Save profile prompt state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+
+  // Sync form when active profile changes
+  useEffect(() => {
+    if (activeProfile) {
+      if (activeProfile.background) setGoodAt(activeProfile.background);
+      if (activeProfile.interests) setInterests(activeProfile.interests);
+      if (activeProfile.location) setWhere(activeProfile.location);
+      if (activeProfile.experience) setExperience(activeProfile.experience);
+      if (activeProfile.workMode) setWorkMode(activeProfile.workMode);
+      if (activeProfile.minSalary) setMinSalary(activeProfile.minSalary);
+    }
+  }, [activeProfile?.id]);
 
   const examples = [
     "Mechanical Engineer",
@@ -29,7 +47,7 @@ export default function HomePage() {
     setError("");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!goodAt.trim()) {
@@ -38,6 +56,25 @@ export default function HomePage() {
     }
 
     setError("");
+    // Show prompt to save as skill profile
+    setShowSaveModal(true);
+  };
+
+  const handleProceedExplore = (saveAsProfile: boolean, profileName?: string) => {
+    setShowSaveModal(false);
+
+    if (saveAsProfile && profileName) {
+      saveProfile({
+        title: profileName.trim(),
+        background: goodAt.trim(),
+        interests: interests.trim(),
+        location: where.trim() || "India",
+        experience,
+        workMode,
+        minSalary: minSalary.trim(),
+      });
+    }
+
     const params = new URLSearchParams();
     params.set("background", goodAt.trim());
     if (interests.trim()) params.set("interests", interests.trim());
@@ -72,7 +109,7 @@ export default function HomePage() {
 
         {/* Card */}
         <form
-          onSubmit={handleSubmit}
+          onSubmit={handleFormSubmit}
           className="bg-card border border-border hover:border-amber-500/30 transition-colors rounded-3xl p-6 sm:p-10 shadow-2xl relative backdrop-blur-sm"
         >
           {/* Field 1 – Good at */}
@@ -256,6 +293,21 @@ export default function HomePage() {
             </p>
           </div>
         </form>
+
+        {/* Save Profile Prompt Modal */}
+        <SaveProfilePromptModal
+          isOpen={showSaveModal}
+          onClose={() => setShowSaveModal(false)}
+          formData={{
+            background: goodAt,
+            interests,
+            location: where,
+            experience,
+            workMode,
+            minSalary,
+          }}
+          onProceed={handleProceedExplore}
+        />
       </div>
     </div>
   );

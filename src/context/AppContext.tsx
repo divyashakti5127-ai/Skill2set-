@@ -30,6 +30,7 @@ interface AppContextType {
   profiles: SkillProfile[];
   activeProfile: SkillProfile | null;
   saveProfile: (profile: Omit<SkillProfile, "id" | "createdAt"> & { id?: string }) => void;
+  updateProfileTitle: (id: string, title: string) => void;
   deleteProfile: (id: string) => void;
   selectActiveProfile: (id: string) => void;
 
@@ -99,37 +100,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const saveProfile = (data: Omit<SkillProfile, "id" | "createdAt"> & { id?: string }) => {
-    let updated: SkillProfile[];
-    if (data.id) {
-      updated = profiles.map((p) =>
-        p.id === data.id ? { ...p, ...data } : p
-      );
-    } else {
-      const newProf: SkillProfile = {
-        id: `profile-${Date.now()}`,
-        title: data.title || "Custom Skill Profile",
-        background: data.background,
-        interests: data.interests,
-        location: data.location,
-        experience: data.experience,
-        workMode: data.workMode,
-        minSalary: data.minSalary,
-        createdAt: new Date().toISOString(),
-      };
-      updated = [newProf, ...profiles];
-      selectActiveProfile(newProf.id);
+    let createdProfileId: string | null = null;
+    setProfiles((prev) => {
+      let updated: SkillProfile[];
+      if (data.id) {
+        updated = prev.map((p) => (p.id === data.id ? { ...p, ...data } : p));
+      } else {
+        const newProf: SkillProfile = {
+          id: `profile-${Date.now()}`,
+          title: data.title || "Custom Skill Profile",
+          background: data.background,
+          interests: data.interests,
+          location: data.location,
+          experience: data.experience,
+          workMode: data.workMode,
+          minSalary: data.minSalary,
+          createdAt: new Date().toISOString(),
+        };
+        createdProfileId = newProf.id;
+        updated = [newProf, ...prev];
+      }
+      saveStoredProfiles(updated);
+      return updated;
+    });
+
+    if (createdProfileId) {
+      selectActiveProfile(createdProfileId);
     }
-    setProfiles(updated);
-    saveStoredProfiles(updated);
+  };
+
+  const updateProfileTitle = (id: string, title: string) => {
+    setProfiles((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, title } : p));
+      saveStoredProfiles(updated);
+      return updated;
+    });
   };
 
   const deleteProfile = (id: string) => {
-    const updated = profiles.filter((p) => p.id !== id);
-    setProfiles(updated);
-    saveStoredProfiles(updated);
-    if (activeProfileId === id && updated.length > 0) {
-      selectActiveProfile(updated[0].id);
-    }
+    setProfiles((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      saveStoredProfiles(updated);
+      if (activeProfileId === id && updated.length > 0) {
+        selectActiveProfile(updated[0].id);
+      }
+      return updated;
+    });
   };
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0] || null;
@@ -307,6 +323,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         profiles,
         activeProfile,
         saveProfile,
+        updateProfileTitle,
         deleteProfile,
         selectActiveProfile,
         savedJobs,
