@@ -28,6 +28,27 @@ export default function TrackerPage() {
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
 
+  // Test Mode toggle state (persisted to localStorage)
+  const [testMode, setTestMode] = useState<boolean>(false);
+
+  // Initialize testMode on client mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("skillsetu_test_mode");
+      if (stored === "true") setTestMode(true);
+    }
+  }, []);
+
+  const toggleTestMode = () => {
+    setTestMode((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("skillsetu_test_mode", String(next));
+      }
+      return next;
+    });
+  };
+
   // Interview modal state
   const [interviewModalJob, setInterviewModalJob] = useState<SavedJob | null>(null);
 
@@ -52,11 +73,19 @@ export default function TrackerPage() {
   };
 
   const handleApplyClick = (job: SavedJob) => {
+    if (testMode) {
+      // In Test Mode: Skip opening real link and directly show confirmation popup
+      clearPendingTimer();
+      setPendingToastJob(null);
+      setConfirmModalJob(job);
+      return;
+    }
+
     if (job.applyLink) {
       window.open(job.applyLink, "_blank", "noopener,noreferrer");
     }
 
-    // Start 8-second countdown
+    // Start 8-second countdown in normal mode
     clearPendingTimer();
     setPendingToastJob(job);
     setCountdown(8);
@@ -173,10 +202,44 @@ export default function TrackerPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Test Mode Toggle */}
+          <div className="flex items-center gap-2.5 bg-card border border-border hover:border-amber-500/40 px-3.5 py-2 rounded-2xl shadow-sm transition-all">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-foreground flex items-center gap-1">
+                <span>🧪</span> Test Mode
+                {testMode && (
+                  <span className="text-[10px] uppercase font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.2 rounded-md">
+                    ON
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] text-muted">
+                {testMode ? "Direct modal (no link)" : "Opens real job portals"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleTestMode}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                testMode ? "bg-amber-500" : "bg-slate-700 hover:bg-slate-600"
+              }`}
+              role="switch"
+              aria-checked={testMode}
+              title={testMode ? "Test Mode is ON: Portal button opens verification popup directly" : "Test Mode is OFF: Portal button opens real external links"}
+            >
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow-md transition duration-200 ease-in-out ${
+                  testMode ? "translate-x-5 bg-slate-950" : "translate-x-0 bg-slate-200"
+                }`}
+              />
+            </button>
+          </div>
+
           <Link
             href="/"
-            className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2.5 text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-amber-500/20"
+            className="rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2.5 text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-2 shadow-md shadow-amber-500/20"
           >
             <span>+ Find New Opportunities</span>
           </Link>
