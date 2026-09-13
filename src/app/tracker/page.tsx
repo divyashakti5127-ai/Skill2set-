@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { ApplicationStage, SavedJob } from "@/lib/storage";
 import ApplicationKitModal, { ApplicationKitData } from "@/components/ApplicationKitModal";
+import ApplyConfirmationModal from "@/components/ApplyConfirmationModal";
 
 const STAGES: { id: ApplicationStage; title: string; icon: string; badgeColor: string }[] = [
   { id: "saved", title: "Saved / Backlog", icon: "📌", badgeColor: "bg-slate-800 text-slate-300 border-slate-700" },
@@ -18,6 +19,79 @@ export default function TrackerPage() {
   const [activeKitData, setActiveKitData] = useState<ApplicationKitData | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+
+  // Post-apply prompt & 8s countdown states
+  const [confirmModalJob, setConfirmModalJob] = useState<SavedJob | null>(null);
+  const [pendingToastJob, setPendingToastJob] = useState<SavedJob | null>(null);
+  const [countdown, setCountdown] = useState<number>(8);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  const clearPendingTimer = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const handleApplyClick = (job: SavedJob) => {
+    if (job.applyLink) {
+      window.open(job.applyLink, "_blank", "noopener,noreferrer");
+    }
+
+    // Start 8-second countdown
+    clearPendingTimer();
+    setPendingToastJob(job);
+    setCountdown(8);
+
+    let remaining = 8;
+    intervalRef.current = setInterval(() => {
+      remaining -= 1;
+      setCountdown(remaining);
+      if (remaining <= 0) {
+        clearPendingTimer();
+        setPendingToastJob(null);
+        setConfirmModalJob(job);
+      }
+    }, 1000);
+  };
+
+  const triggerConfirmImmediately = (job: SavedJob) => {
+    clearPendingTimer();
+    setPendingToastJob(null);
+    setConfirmModalJob(job);
+  };
+
+  const handleCancelToast = () => {
+    clearPendingTimer();
+    setPendingToastJob(null);
+  };
+
+  const handleConfirmApplied = (job: SavedJob, noteType: "just_applied" | "already_applied") => {
+    updateJobStatus(job.id, "applied");
+    const dateFormatted = new Date().toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    const noteLine =
+      noteType === "just_applied"
+        ? `Applied via official portal on ${dateFormatted}`
+        : `Previously applied via official portal`;
+    const updatedNotes = job.notes ? `${job.notes}\n• ${noteLine}` : `• ${noteLine}`;
+    updateJobNotes(job.id, updatedNotes);
+    setConfirmModalJob(null);
+  };
+
+  const handleNotYet = () => {
+    setConfirmModalJob(null);
+  };
 
   const handleOpenKit = async (job: SavedJob) => {
     try {
@@ -201,19 +275,18 @@ export default function TrackerPage() {
                           </button>
 
                           {job.applyLink && (
-                            <a
-                              href={job.applyLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] text-muted hover:text-foreground hover:underline"
+                            <button
+                              onClick={() => handleApplyClick(job)}
+                              className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                              title="Open official portal & track application"
                             >
-                              Portal ↗
-                            </a>
+                              <span>Portal ↗</span>
+                            </button>
                           )}
 
                           <button
                             onClick={() => removeSavedJob(job.id)}
-                            className="text-[11px] text-muted hover:text-red-400 transition-colors"
+                            className="text-[11px] text-muted hover:text-red-400 transition-colors cursor-pointer"
                             title="Remove from board"
                           >
                             ✕
@@ -247,6 +320,60 @@ export default function TrackerPage() {
           );
         })}
       </div>
+
+      {/* Floating 8s Apply Countdown Toast */}
+      {pendingToastJob && (
+        <div className="fixed bottom-6 right-6 z-40 max-w-sm bg-card border border-amber-500/50 rounded-2xl shadow-2xl shadow-amber-500/20 p-4 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-xs">
+                {countdown}s
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground">Opening portal tab...</p>
+                <p className="text-[11px] text-muted line-clamp-1">{pendingToastJob.title}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleCancelToast}
+              className="text-muted hover:text-foreground text-xs p-1 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => triggerConfirmImmediately(pendingToastJob)}
+              className="flex-1 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 py-1.5 px-3 rounded-xl transition-all cursor-pointer"
+            >
+              Check status now
+            </button>
+            <button
+              onClick={handleCancelToast}
+              className="text-xs text-muted hover:text-foreground py-1.5 px-2 rounded-xl cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1 overflow-hidden">
+            <div
+              className="bg-amber-400 h-full transition-all duration-1000 ease-linear"
+              style={{ width: `${(countdown / 8) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Did You Apply Confirmation Modal */}
+      {confirmModalJob && (
+        <ApplyConfirmationModal
+          job={confirmModalJob}
+          isOpen={!!confirmModalJob}
+          onClose={() => setConfirmModalJob(null)}
+          onConfirmApplied={handleConfirmApplied}
+          onNotYet={handleNotYet}
+        />
+      )}
 
       {/* Application Kit Modal */}
       {activeKitData && (
