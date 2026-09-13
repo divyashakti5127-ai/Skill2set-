@@ -3,6 +3,9 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useApp } from "@/context/AppContext";
+import ApplicationKitModal, { ApplicationKitData } from "@/components/ApplicationKitModal";
+import { MissingSkill } from "@/lib/storage";
 
 /* ───── Types ───── */
 
@@ -18,6 +21,8 @@ interface Job {
   applyLink: string | null;
   matchScore?: number;
   whyMatch?: string;
+  matchingSkills?: string[];
+  missingSkills?: MissingSkill[];
 }
 
 interface RoadmapData {
@@ -64,7 +69,7 @@ function WorkModeBadge({ mode }: { mode: string }) {
   );
 }
 
-/* ───── Career Roadmap Modal ───── */
+/* ───── Interactive Career Roadmap Modal ───── */
 
 function RoadmapModal({
   field,
@@ -75,7 +80,29 @@ function RoadmapModal({
   roadmap: RoadmapData;
   onClose: () => void;
 }) {
+  const { saveRoadmap, isRoadmapSaved, getSavedRoadmapByField } = useApp();
+  const existing = getSavedRoadmapByField(field);
+
+  const [completedSteps, setCompletedSteps] = useState<number[]>(existing?.completedSteps || []);
   const [copied, setCopied] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(isRoadmapSaved(field));
+
+  const totalSteps = roadmap.gettingStarted.length;
+  const progressPercent = Math.round((completedSteps.length / (totalSteps || 1)) * 100);
+
+  const handleToggleStep = (idx: number) => {
+    const updated = completedSteps.includes(idx)
+      ? completedSteps.filter((s) => s !== idx)
+      : [...completedSteps, idx].sort((a, b) => a - b);
+    setCompletedSteps(updated);
+    saveRoadmap({ field, roadmap, completedSteps: updated });
+    setSavedSuccess(true);
+  };
+
+  const handleSaveToDashboard = () => {
+    saveRoadmap({ field, roadmap, completedSteps });
+    setSavedSuccess(true);
+  };
 
   const handleCopy = () => {
     const text = `🗺️ CAREER ROADMAP: ${field.toUpperCase()} (India)
@@ -83,14 +110,14 @@ function RoadmapModal({
 💡 OVERVIEW
 ${roadmap.overview}
 
-🚀 GETTING STARTED
-${roadmap.gettingStarted.map((s, i) => `${i + 1}. ${s}`).join("\n")}
+🚀 GETTING STARTED CHECKLIST
+${roadmap.gettingStarted.map((s, i) => `[${completedSteps.includes(i) ? "X" : " "}] Step ${i + 1}: ${s}`).join("\n")}
 
 📍 WHERE TO GET NOTICED & FIND OPPORTUNITIES
-${roadmap.whereToFind.map((s, i) => `• ${s}`).join("\n")}
+${roadmap.whereToFind.map((s) => `• ${s}`).join("\n")}
 
 💰 HOW TO MONETIZE IN INDIA
-${roadmap.monetization.map((s, i) => `• ${s}`).join("\n")}
+${roadmap.monetization.map((s) => `• ${s}`).join("\n")}
 
 ⏳ REALISTIC TIMELINE
 ${roadmap.timeline}
@@ -110,7 +137,7 @@ ${roadmap.encouragement}
       onClick={onClose}
     >
       <div
-        className="bg-card border border-amber-500/30 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl shadow-amber-500/10"
+        className="bg-card border border-amber-500/30 rounded-3xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl shadow-amber-500/10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -135,10 +162,38 @@ ${roadmap.encouragement}
           </button>
         </div>
 
+        {/* Progress Tracker Bar */}
+        <div className="bg-background/80 px-6 py-3 border-b border-border/70 flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="font-semibold text-foreground">Milestone Progress</span>
+              <span className="font-bold text-amber-400">
+                {completedSteps.length} of {totalSteps} Completed ({progressPercent}%)
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-border">
+              <div
+                className="bg-gradient-to-r from-amber-500 to-amber-400 h-full transition-all duration-300 rounded-full"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleSaveToDashboard}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              savedSuccess
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                : "bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25"
+            }`}
+          >
+            {savedSuccess ? "✓ Saved to Dashboard" : "☆ Save Roadmap"}
+          </button>
+        </div>
+
         {/* Body */}
         <div className="px-6 py-6 overflow-y-auto flex-1 space-y-6 text-sm">
           {/* Overview */}
-          <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-4">
+          <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5 flex items-center gap-1.5">
               <span>💡</span> Market & Landscape Overview
             </h4>
@@ -147,25 +202,39 @@ ${roadmap.encouragement}
             </p>
           </div>
 
-          {/* Getting Started */}
+          {/* Getting Started with Interactive Checkmarks */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-3 flex items-center gap-1.5">
-              <span>🚀</span> 1. Getting Started (Core Skills & Foundation)
+              <span>🚀</span> 1. Actionable Milestones (Check off as you complete)
             </h4>
             <div className="space-y-2.5">
-              {roadmap.gettingStarted.map((step, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 bg-card border border-border/80 rounded-xl p-3"
-                >
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-border text-foreground text-xs font-semibold flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                  <p className="text-foreground/85 leading-relaxed pt-0.5">
-                    {step}
-                  </p>
-                </div>
-              ))}
+              {roadmap.gettingStarted.map((step, idx) => {
+                const isDone = completedSteps.includes(idx);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => handleToggleStep(idx)}
+                    className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                      isDone
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+                        : "bg-card border-border/80 text-foreground/90 hover:border-amber-500/40"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isDone}
+                      onChange={() => {}}
+                      className="mt-1 w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <span className="font-bold text-xs mr-1.5">Step {idx + 1}:</span>
+                      <span className={`text-xs sm:text-sm ${isDone ? "line-through opacity-80" : ""}`}>
+                        {step}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -178,9 +247,9 @@ ${roadmap.encouragement}
               {roadmap.whereToFind.map((place, idx) => (
                 <div
                   key={idx}
-                  className="bg-card border border-border/80 rounded-xl p-3 flex items-start gap-2"
+                  className="bg-card border border-border/80 rounded-2xl p-3 flex items-start gap-2"
                 >
-                  <span className="text-accent text-sm mt-0.5">•</span>
+                  <span className="text-amber-400 text-sm mt-0.5">•</span>
                   <p className="text-foreground/85 leading-relaxed text-xs sm:text-sm">
                     {place}
                   </p>
@@ -198,7 +267,7 @@ ${roadmap.encouragement}
               {roadmap.monetization.map((m, idx) => (
                 <div
                   key={idx}
-                  className="flex items-start gap-2.5 bg-card border border-border/80 rounded-xl p-3"
+                  className="flex items-start gap-2.5 bg-card border border-border/80 rounded-2xl p-3"
                 >
                   <span className="text-emerald-400 font-semibold text-sm">₹</span>
                   <p className="text-foreground/85 leading-relaxed">
@@ -210,7 +279,7 @@ ${roadmap.encouragement}
           </div>
 
           {/* Timeline */}
-          <div className="bg-card border border-border/90 rounded-xl p-4">
+          <div className="bg-card border border-border/90 rounded-2xl p-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-1.5 flex items-center gap-1.5">
               <span>⏳</span> 4. Realistic Timeline & Progression
             </h4>
@@ -220,9 +289,9 @@ ${roadmap.encouragement}
           </div>
 
           {/* Encouragement */}
-          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-600/15 border border-amber-500/30 rounded-xl p-4">
+          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-600/15 border border-amber-500/30 rounded-2xl p-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-amber-300 mb-1 flex items-center gap-1.5">
-              <span>✨</span> Encouragement
+              <span>✨</span> Words of Encouragement
             </h4>
             <p className="text-foreground/95 italic leading-relaxed">
               "{roadmap.encouragement}"
@@ -234,7 +303,7 @@ ${roadmap.encouragement}
         <div className="px-6 py-4 border-t border-border/80 flex gap-3 justify-end bg-card/60">
           <button
             onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
+            className="rounded-xl border border-border px-4 py-2 text-sm text-muted hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
           >
             Close
           </button>
@@ -242,150 +311,7 @@ ${roadmap.encouragement}
             onClick={handleCopy}
             className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-5 py-2 text-sm font-bold transition-all cursor-pointer min-w-[90px] flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
           >
-            {copied ? (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Copied!
-              </>
-            ) : (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy Roadmap
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ───── Cover Letter Modal ───── */
-
-function CoverLetterModal({
-  job,
-  letter,
-  onClose,
-}: {
-  job: Job;
-  letter: string;
-  onClose: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(letter).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      <div
-        className="bg-card border border-amber-500/25 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl shadow-amber-500/10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between bg-gradient-to-r from-amber-500/10 via-card to-card">
-          <div>
-            <h3 className="text-base font-bold text-foreground">
-              Generated Cover Letter
-            </h3>
-            <p className="text-xs text-muted mt-0.5">
-              {job.title} · {job.company}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-muted hover:text-foreground transition-colors text-xl leading-none p-1.5 rounded-lg hover:bg-slate-800/60 cursor-pointer"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-6 py-5 overflow-y-auto flex-1">
-          <pre className="whitespace-pre-wrap text-[14px] text-foreground/90 leading-relaxed font-sans select-text">
-            {letter}
-          </pre>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-border/80 flex gap-3 justify-end bg-card/60">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-muted hover:text-foreground hover:border-foreground/30 transition-colors cursor-pointer"
-          >
-            Close
-          </button>
-          <button
-            onClick={handleCopy}
-            className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-5 py-2 text-sm font-bold transition-all cursor-pointer min-w-[90px] flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20"
-          >
-            {copied ? (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Copied!
-              </>
-            ) : (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy Cover Letter
-              </>
-            )}
+            {copied ? "✓ Copied!" : "Copy Full Roadmap"}
           </button>
         </div>
       </div>
@@ -401,7 +327,7 @@ function LoadingSkeleton() {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="bg-card border border-border rounded-2xl p-5 sm:p-6 animate-pulse"
+          className="bg-card border border-border rounded-3xl p-5 sm:p-6 animate-pulse"
         >
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -429,10 +355,11 @@ function LoadingSkeleton() {
 
 function ResultsContent() {
   const searchParams = useSearchParams();
+  const { saveJob, isJobSaved, activeProfile } = useApp();
 
-  const background = searchParams.get("background") || "";
-  const interests = searchParams.get("interests") || "";
-  const location = searchParams.get("location") || "";
+  const background = searchParams.get("background") || activeProfile?.background || "";
+  const interests = searchParams.get("interests") || activeProfile?.interests || "";
+  const location = searchParams.get("location") || activeProfile?.location || "";
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isUnconventionalField, setIsUnconventionalField] = useState(false);
@@ -442,13 +369,10 @@ function ResultsContent() {
   // Expand details state for job cards
   const [expandedJobIds, setExpandedJobIds] = useState<Record<string, boolean>>({});
 
-  // Cover letter state
-  const [generatingLetterId, setGeneratingLetterId] = useState<string | null>(null);
-  const [activeCoverLetter, setActiveCoverLetter] = useState<{
-    job: Job;
-    letter: string;
-  } | null>(null);
-  const [letterError, setLetterError] = useState("");
+  // Application Kit state
+  const [generatingKitId, setGeneratingKitId] = useState<string | null>(null);
+  const [activeApplicationKit, setActiveApplicationKit] = useState<ApplicationKitData | null>(null);
+  const [kitError, setKitError] = useState("");
 
   // Career Roadmap state
   const [roadmapLoading, setRoadmapLoading] = useState(false);
@@ -501,16 +425,14 @@ function ResultsContent() {
     }));
   };
 
-  const handleGenerateCoverLetter = async (job: Job) => {
-    setGeneratingLetterId(job.id);
-    setLetterError("");
+  const handleGenerateApplicationKit = async (job: Job) => {
+    setGeneratingKitId(job.id);
+    setKitError("");
 
     try {
-      const res = await fetch("/api/cover-letter", {
+      const res = await fetch("/api/application-kit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobTitle: job.title,
           company: job.company,
@@ -523,18 +445,22 @@ function ResultsContent() {
       const data = await res.json();
 
       if (!res.ok || !data.coverLetter) {
-        throw new Error(data.error || "Could not generate cover letter.");
+        throw new Error(data.error || "Could not generate application kit.");
       }
 
-      setActiveCoverLetter({
+      setActiveApplicationKit({
         job,
-        letter: data.coverLetter,
+        coverLetter: data.coverLetter,
+        resumeHeadline: data.resumeHeadline || `${job.title} Candidate`,
+        resumeBullets: data.resumeBullets || [
+          `Demonstrated hands-on experience in ${background.split(",")[0] || "core domain"}.`,
+        ],
       });
     } catch (err: any) {
-      setLetterError(err.message || "Failed to generate cover letter.");
-      setTimeout(() => setLetterError(""), 5000);
+      setKitError(err.message || "Failed to generate application kit.");
+      setTimeout(() => setKitError(""), 5000);
     } finally {
-      setGeneratingLetterId(null);
+      setGeneratingKitId(null);
     }
   };
 
@@ -545,9 +471,7 @@ function ResultsContent() {
     try {
       const res = await fetch("/api/career-roadmap", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           background,
           interests,
@@ -574,47 +498,21 @@ function ResultsContent() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
       {/* Page heading */}
-      <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight mb-8 flex items-center gap-2.5">
-        <span>✦</span> Your Recommended Paths
-      </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2.5">
+            <span>✦</span> Your Recommended Opportunities
+          </h2>
+          <p className="text-xs text-muted mt-1">
+            Real jobs and custom roadmaps analyzed specifically for your profile.
+          </p>
+        </div>
 
-      {/* Search summary card */}
-      <div className="bg-card border border-border/90 rounded-2xl p-6 sm:p-8 space-y-5 shadow-sm">
-        <div>
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">Background</p>
-          <p className="text-[15px] font-medium text-foreground">
-            {background || (
-              <span className="text-muted italic">Not specified</span>
-            )}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">Interests & Passions</p>
-          <p className="text-[15px] font-medium text-foreground">
-            {interests || (
-              <span className="text-muted italic">Not specified</span>
-            )}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-1">
-            Preferred location
-          </p>
-          <p className="text-[15px] font-medium text-foreground">
-            {location || (
-              <span className="text-muted italic">Not specified</span>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {/* Edit search */}
-      <div className="mt-6">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-border text-foreground/80 hover:text-foreground hover:border-amber-500/40 hover:bg-slate-800/40 px-4 py-2 text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-border text-foreground/80 hover:text-foreground hover:border-amber-500/40 hover:bg-slate-800/40 px-3.5 py-2 text-xs font-semibold transition-colors self-start sm:self-auto"
         >
           <svg
             className="w-3.5 h-3.5 text-amber-400"
@@ -629,16 +527,40 @@ function ResultsContent() {
               d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
             />
           </svg>
-          Edit search criteria
+          Edit Search
         </Link>
+      </div>
+
+      {/* Search summary card */}
+      <div className="bg-card border border-border/90 rounded-3xl p-5 sm:p-7 space-y-4 shadow-sm mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div>
+            <p className="font-semibold text-muted uppercase tracking-wider mb-1">Your Skills & Background</p>
+            <p className="text-sm font-medium text-foreground">
+              {background || <span className="text-muted italic">Not specified</span>}
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-muted uppercase tracking-wider mb-1">Target Roles / Passions</p>
+            <p className="text-sm font-medium text-foreground">
+              {interests || <span className="text-muted italic">Not specified</span>}
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-muted uppercase tracking-wider mb-1">Target Location</p>
+            <p className="text-sm font-medium text-foreground">
+              {location || <span className="text-muted italic">India / Remote</span>}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ───── High-Prominence Career Roadmap Banner (if Unconventional/Gig Field) ───── */}
       {isUnconventionalField && (
-        <div className="mt-8 bg-gradient-to-br from-amber-500/20 via-slate-900/90 to-card border-2 border-amber-500/40 rounded-2xl p-6 sm:p-7 shadow-xl shadow-amber-500/5 relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="mb-8 bg-gradient-to-br from-amber-500/20 via-slate-900/90 to-card border-2 border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-xl shadow-amber-500/5 relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 text-xs font-bold shadow-sm">
-              ✨ Recommended for this path • There's always a way forward
+              ✨ Recommended for this path • There is always a way forward
             </span>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mt-3">
@@ -656,38 +578,9 @@ function ResultsContent() {
             <button
               onClick={handleGenerateRoadmap}
               disabled={roadmapLoading}
-              className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 text-slate-950 px-6 py-3 text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 flex-shrink-0 shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98]"
+              className="rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 text-slate-950 px-6 py-3.5 text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 flex-shrink-0 shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98]"
             >
-              {roadmapLoading ? (
-                <>
-                  <svg
-                    className="animate-spin h-4 w-4 text-slate-950"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth={4}
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Crafting Blueprint…
-                </>
-              ) : (
-                <>
-                  <span>View Career Roadmap</span>
-                  <span>➔</span>
-                </>
-              )}
+              {roadmapLoading ? "Crafting Blueprint…" : "View Career Roadmap ➔"}
             </button>
           </div>
 
@@ -700,14 +593,19 @@ function ResultsContent() {
       )}
 
       {/* ───── Recommended jobs ───── */}
-      <h3 className="text-lg font-bold text-foreground mt-10 mb-5 flex items-center gap-2">
-        <span>💼</span> Recommended Job Opportunities
-      </h3>
+      <div className="flex items-center justify-between mt-8 mb-5">
+        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+          <span>💼</span> Recommended Job Matches
+        </h3>
+        <span className="text-xs text-muted">
+          Showing AI-ranked real job postings
+        </span>
+      </div>
 
-      {/* Cover Letter Error Alert */}
-      {letterError && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400 mb-4 animate-in fade-in">
-          {letterError}
+      {/* Kit Error Alert */}
+      {kitError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-sm text-red-400 mb-4 animate-in fade-in">
+          {kitError}
         </div>
       )}
 
@@ -716,7 +614,7 @@ function ResultsContent() {
         <>
           <p className="text-sm text-amber-400/90 mb-4 animate-pulse flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            Analyzing and ranking opportunities with AI…
+            Analyzing real job boards and evaluating skill gaps…
           </p>
           <LoadingSkeleton />
         </>
@@ -724,54 +622,63 @@ function ResultsContent() {
 
       {/* Error */}
       {!loading && error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-sm text-red-400">
           {error}
         </div>
       )}
 
       {/* No results */}
       {!loading && !error && jobs.length === 0 && (
-        <p className="text-sm text-muted">
-          No jobs found matching these exact terms. Try broadening your background or interests.
-        </p>
+        <div className="bg-card border border-border rounded-3xl p-8 text-center">
+          <p className="text-sm text-muted mb-4">
+            No exact job matches found right now. Try expanding your search or explore a creator career roadmap.
+          </p>
+          <button
+            onClick={handleGenerateRoadmap}
+            className="rounded-xl bg-amber-500 text-slate-950 font-bold px-4 py-2 text-xs"
+          >
+            Generate Career Roadmap Instead ➔
+          </button>
+        </div>
       )}
 
-      {/* Job cards */}
+      {/* Job cards with SKILL GAP ANALYSIS */}
       {!loading && !error && jobs.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {jobs.map((job) => {
             const isExpanded = !!expandedJobIds[job.id];
-            const isGeneratingThis = generatingLetterId === job.id;
+            const isGeneratingThis = generatingKitId === job.id;
             const score = job.matchScore ?? 0;
+            const isSaved = isJobSaved(job.id);
 
             // Visual card hierarchy styling based on match score
             const cardHierarchyClass =
               score >= 80
                 ? "bg-card border border-amber-500/35 hover:border-amber-500/60 shadow-lg shadow-amber-500/5"
                 : score >= 50
-                ? "bg-card border border-border/90 hover:border-amber-500/30"
+                ? "bg-card border border-border/90 hover:border-amber-500/30 shadow-sm"
                 : "bg-card/75 border border-border/60 opacity-90 hover:opacity-100 hover:border-border";
 
             return (
               <div
                 key={job.id}
-                className={`${cardHierarchyClass} rounded-2xl p-5 sm:p-6 transition-all duration-200`}
+                className={`${cardHierarchyClass} rounded-3xl p-5 sm:p-7 transition-all duration-200`}
               >
                 {/* Title + Match Score */}
                 <div className="flex items-start justify-between gap-3 mb-1.5">
-                  <h4 className="text-[16px] font-bold text-foreground leading-snug">
-                    {job.title}
-                  </h4>
+                  <div>
+                    <h4 className="text-base sm:text-lg font-bold text-foreground leading-snug">
+                      {job.title}
+                    </h4>
+                    <p className="text-sm font-semibold text-muted mt-0.5">{job.company}</p>
+                  </div>
                   {typeof job.matchScore === "number" && (
                     <MatchBadge score={job.matchScore} />
                   )}
                 </div>
 
-                {/* Company */}
-                <p className="text-sm font-medium text-muted mb-2">{job.company}</p>
-
                 {/* Location + work mode */}
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 mt-1">
                   <p className="text-xs text-muted/80 flex items-center gap-1">
                     <svg
                       className="w-3.5 h-3.5 text-amber-400/70"
@@ -798,20 +705,81 @@ function ResultsContent() {
 
                 {/* Short preview Description */}
                 {!isExpanded && (
-                  <p className="text-sm text-foreground/80 leading-relaxed mb-3 line-clamp-2">
+                  <p className="text-sm text-foreground/80 leading-relaxed mb-4 line-clamp-2">
                     {job.description}
                   </p>
                 )}
 
                 {/* Why this matches section */}
                 {job.whyMatch && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-4">
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3 mb-4">
                     <p className="text-xs text-amber-300/90 leading-relaxed">
                       <span className="font-bold text-amber-300">Why this matches:</span>{" "}
                       {job.whyMatch}
                     </p>
                   </div>
                 )}
+
+                {/* ───── SKILL GAP ANALYSIS SECTION ───── */}
+                <div className="bg-background/80 border border-border/80 rounded-2xl p-4 mb-4 space-y-3">
+                  {/* You Already Have */}
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
+                      <span>✓</span> You Already Have:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {job.matchingSkills && job.matchingSkills.length > 0 ? (
+                        job.matchingSkills.map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 px-2.5 py-1 rounded-full text-xs font-medium"
+                          >
+                            {s}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted italic">Core domain experience</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Missing Skills & Free/Paid Learning Resources */}
+                  <div className="pt-2 border-t border-border/60">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
+                      <span>⚡</span> Missing Skills & Learning Paths:
+                    </div>
+                    <div className="space-y-2">
+                      {job.missingSkills && job.missingSkills.length > 0 ? (
+                        job.missingSkills.map((ms, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-card/90 border border-border/70 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                          >
+                            <div>
+                              <span className="font-bold text-foreground">{ms.skill}</span>
+                              {ms.reason && (
+                                <p className="text-[11px] text-muted mt-0.5">{ms.reason}</p>
+                              )}
+                            </div>
+                            {ms.resource && (
+                              <a
+                                href={ms.resource.url || `https://www.youtube.com/results?search_query=${encodeURIComponent(ms.skill + " tutorial")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors flex-shrink-0 self-start sm:self-auto"
+                              >
+                                <span>{ms.resource.type === "free" ? "🟢 Free Resource:" : "🟡 Resource:"}</span>
+                                <span>{ms.resource.platform || "YouTube / Guide"} ↗</span>
+                              </a>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted italic">Ready to apply directly</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Expanded Full Details Section */}
                 {isExpanded && (
@@ -847,95 +815,47 @@ function ResultsContent() {
                 )}
 
                 {/* Actions Button Row */}
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  {/* View / Collapse Details button */}
-                  <button
-                    onClick={() => toggleDetails(job.id)}
-                    className="rounded-xl border border-border text-foreground/90 hover:bg-slate-800/50 hover:border-amber-500/30 px-4 py-2 text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
-                  >
-                    {isExpanded ? (
-                      <>
-                        Collapse details
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 15l7-7 7 7"
-                          />
-                        </svg>
-                      </>
-                    ) : (
-                      <>
-                        View details
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </>
-                    )}
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    {/* View / Collapse Details */}
+                    <button
+                      onClick={() => toggleDetails(job.id)}
+                      className="rounded-xl border border-border text-foreground/90 hover:bg-slate-800/50 hover:border-amber-500/30 px-3.5 py-2 text-xs sm:text-sm font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      {isExpanded ? "Collapse details ▲" : "View details ▼"}
+                    </button>
 
-                  {/* Generate cover letter button */}
+                    {/* Bookmark / Save to Pipeline */}
+                    <button
+                      onClick={() => saveJob(job)}
+                      className={`rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSaved
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                          : "bg-background/80 text-muted border-border hover:text-foreground hover:border-amber-500/30"
+                      }`}
+                    >
+                      {isSaved ? "★ Saved in Pipeline" : "☆ Save Job"}
+                    </button>
+                  </div>
+
+                  {/* Generate Application Kit (Cover Letter + Resume Bullets) */}
                   <button
-                    onClick={() => handleGenerateCoverLetter(job)}
+                    onClick={() => handleGenerateApplicationKit(job)}
                     disabled={isGeneratingThis}
-                    className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 text-slate-950 px-4 py-2 text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-amber-500/15"
+                    className="rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-60 text-slate-950 px-4 py-2 text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-amber-500/20"
                   >
                     {isGeneratingThis ? (
                       <>
-                        <svg
-                          className="animate-spin -ml-0.5 mr-1 h-3.5 w-3.5 text-slate-950"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth={4}
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
+                        <svg className="animate-spin h-3.5 w-3.5 text-slate-950" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Drafting Letter…
+                        Tailoring Kit…
                       </>
                     ) : (
                       <>
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                        Generate cover letter
+                        <span>⚡</span>
+                        <span>Tailor Cover Letter & Resume</span>
                       </>
                     )}
                   </button>
@@ -946,9 +866,9 @@ function ResultsContent() {
         </div>
       )}
 
-      {/* ───── Secondary / Standard Career Roadmap Banner (for Standard Fields) ───── */}
+      {/* ───── Secondary Career Roadmap Banner (for Standard Fields) ───── */}
       {!isUnconventionalField && !loading && (
-        <div className="mt-10 bg-gradient-to-br from-card via-slate-900/80 to-amber-500/5 border border-amber-500/25 hover:border-amber-500/40 rounded-2xl p-6 text-card-foreground transition-all">
+        <div className="mt-10 bg-gradient-to-br from-card via-slate-900/80 to-amber-500/5 border border-amber-500/25 hover:border-amber-500/40 rounded-3xl p-6 text-card-foreground transition-all">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -969,36 +889,7 @@ function ResultsContent() {
               disabled={roadmapLoading}
               className="rounded-xl border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 flex-shrink-0"
             >
-              {roadmapLoading ? (
-                <>
-                  <svg
-                    className="animate-spin h-3.5 w-3.5 text-amber-300"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth={4}
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Crafting Blueprint…
-                </>
-              ) : (
-                <>
-                  <span>Explore Career Roadmap</span>
-                  <span>➔</span>
-                </>
-              )}
+              {roadmapLoading ? "Crafting Blueprint…" : "Explore Career Roadmap ➔"}
             </button>
           </div>
 
@@ -1010,16 +901,15 @@ function ResultsContent() {
         </div>
       )}
 
-      {/* Cover Letter Display Modal */}
-      {activeCoverLetter && (
-        <CoverLetterModal
-          job={activeCoverLetter.job}
-          letter={activeCoverLetter.letter}
-          onClose={() => setActiveCoverLetter(null)}
+      {/* Tailored Application Kit Modal (Cover Letter + Resume Bullets) */}
+      {activeApplicationKit && (
+        <ApplicationKitModal
+          data={activeApplicationKit}
+          onClose={() => setActiveApplicationKit(null)}
         />
       )}
 
-      {/* Career Roadmap Display Modal */}
+      {/* Interactive Career Roadmap Display Modal */}
       {activeRoadmap && (
         <RoadmapModal
           field={activeRoadmap.field}
@@ -1037,7 +927,7 @@ export default function ResultsPage() {
   return (
     <Suspense
       fallback={
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
           <div className="h-8 bg-border rounded w-1/3 mb-8 animate-pulse" />
           <LoadingSkeleton />
         </div>

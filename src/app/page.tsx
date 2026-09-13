@@ -1,20 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useApp } from "@/context/AppContext";
 
 export default function HomePage() {
   const router = useRouter();
+  const { profiles, activeProfile, selectActiveProfile } = useApp();
 
   const [goodAt, setGoodAt] = useState("");
   const [interests, setInterests] = useState("");
-  const [where, setWhere] = useState("");
+  const [where, setWhere] = useState("India");
   const [error, setError] = useState("");
 
   const [showPrefs, setShowPrefs] = useState(false);
   const [experience, setExperience] = useState("");
   const [workMode, setWorkMode] = useState("");
   const [minSalary, setMinSalary] = useState("");
+
+  // Populate from active profile on load or switch
+  useEffect(() => {
+    if (activeProfile) {
+      if (!goodAt) setGoodAt(activeProfile.background || "");
+      if (!interests) setInterests(activeProfile.interests || "");
+      if (activeProfile.location && where === "India") setWhere(activeProfile.location);
+    }
+  }, [activeProfile]);
+
+  const handleSelectProfile = (p: typeof profiles[0]) => {
+    selectActiveProfile(p.id);
+    setGoodAt(p.background);
+    setInterests(p.interests || "");
+    setWhere(p.location || "India");
+  };
 
   const examples = [
     "Mechanical Engineer",
@@ -69,6 +87,34 @@ export default function HomePage() {
             Describe your skills or passions in your own words. We uncover real job matches, gig opportunities, and step-by-step career roadmaps across India and beyond.
           </p>
         </div>
+
+        {/* Saved Profiles Quick Switch Bar */}
+        {profiles.length > 0 && (
+          <div className="mb-4 flex items-center justify-between bg-card/60 border border-border/80 rounded-2xl p-2.5 px-4 text-xs">
+            <span className="text-muted font-medium flex items-center gap-1.5">
+              <span>👤</span> Target Profile:
+            </span>
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {profiles.map((p) => {
+                const isSelected = activeProfile?.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectProfile(p)}
+                    className={`px-2.5 py-1 rounded-xl font-medium transition-all cursor-pointer truncate max-w-[160px] ${
+                      isSelected
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold"
+                        : "text-muted hover:text-foreground hover:bg-slate-800/40"
+                    }`}
+                  >
+                    {p.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <form

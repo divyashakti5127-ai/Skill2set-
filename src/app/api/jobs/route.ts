@@ -11,6 +11,19 @@ const GEMINI_MODELS = [
   "gemini-flash-lite-latest",
 ];
 
+export interface SkillResource {
+  title: string;
+  type: "free" | "paid";
+  platform: string;
+  url?: string;
+}
+
+export interface MissingSkill {
+  skill: string;
+  reason?: string;
+  resource?: SkillResource;
+}
+
 interface RawJob {
   id: string;
   source: "Adzuna" | "JSearch" | "Remotive";
@@ -24,12 +37,16 @@ interface RawJob {
   applyLink: string | null;
   matchScore?: number;
   whyMatch?: string;
+  matchingSkills?: string[];
+  missingSkills?: MissingSkill[];
 }
 
 interface GeminiRankResult {
   id: string;
   matchScore: number;
   whyMatch: string;
+  matchingSkills?: string[];
+  missingSkills?: MissingSkill[];
 }
 
 interface GeneratedQueriesResult {
@@ -328,12 +345,32 @@ ${JSON.stringify(jobSummaries, null, 2)}
 Strict Instructions:
 1. Only rank and return jobs from the provided list above. Never invent jobs or IDs.
 2. Stricter Scoring Rule: Only assign a high matchScore (above 60) if there is a genuine, specific connection between the user's background/interests and the job's actual duties. If a job has little to no real relevance, assign an honest low matchScore (below 40) and clearly state why in whyMatch — do not force a generic positive explanation.
-3. Specific Reasoning Rule: Each "whyMatch" must reference SPECIFIC details from that job's actual description/duties (e.g. comedy scriptwriting, humor writing, event hosting, audience entertainment, content creation), NOT a generic templated sentence.
-4. Select and rank up to the top 5 most relevant jobs from this list, sorted highest matchScore first.
+3. Specific Reasoning Rule: Each "whyMatch" must reference SPECIFIC details from that job's actual description/duties, NOT a generic templated sentence.
+4. Skill Gap Analysis:
+   - "matchingSkills": Array of 2 to 4 concrete skills or strengths the user already possesses that match this role.
+   - "missingSkills": Array of 1 to 3 key skills or tools the user would benefit from learning to bridge the gap for this role. For each, include a short "reason" and a recommended "resource" object with "title", "type" ("free" or "paid"), "platform" (e.g. "freeCodeCamp", "YouTube", "Coursera", "Official Docs", "Udemy"), and optional helpful search "url" (or direct link).
+5. Select and rank up to the top 5 most relevant jobs from this list, sorted highest matchScore first.
 
-Return a JSON array matching this schema:
+Return a JSON array matching this exact schema:
 [
-  { "id": "job_id_here", "matchScore": 78, "whyMatch": "Specific connection referencing actual duties..." }
+  {
+    "id": "job_id_here",
+    "matchScore": 78,
+    "whyMatch": "Specific connection referencing actual duties...",
+    "matchingSkills": ["React.js", "Component Architecture", "REST APIs"],
+    "missingSkills": [
+      {
+        "skill": "Next.js App Router & Server Actions",
+        "reason": "Used heavily in modern full-stack web architectures",
+        "resource": {
+          "title": "Next.js Full Course - App Router",
+          "type": "free",
+          "platform": "YouTube / freeCodeCamp",
+          "url": "https://www.youtube.com/results?search_query=nextjs+app+router+tutorial"
+        }
+      }
+    ]
+  }
 ]`;
 
   for (const model of GEMINI_MODELS) {
@@ -347,7 +384,7 @@ Return a JSON array matching this schema:
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 2500,
+              maxOutputTokens: 3500,
               responseMimeType: "application/json",
             },
           }),
@@ -378,6 +415,23 @@ Return a JSON array matching this schema:
                 ...original,
                 matchScore: typeof item.matchScore === "number" ? item.matchScore : 40,
                 whyMatch: item.whyMatch || "Assessed based on role requirements.",
+                matchingSkills: Array.isArray(item.matchingSkills) && item.matchingSkills.length > 0
+                  ? item.matchingSkills
+                  : [background.split(",")[0]?.trim() || "Core Domain Knowledge", "Communication"],
+                missingSkills: Array.isArray(item.missingSkills) && item.missingSkills.length > 0
+                  ? item.missingSkills
+                  : [
+                      {
+                        skill: "Role-Specific Advanced Tooling",
+                        reason: "Recommended to stand out in interviews",
+                        resource: {
+                          title: "Advanced Skill Guide",
+                          type: "free",
+                          platform: "YouTube / Docs",
+                          url: "https://www.youtube.com",
+                        },
+                      },
+                    ],
               });
             }
           }
@@ -385,11 +439,13 @@ Return a JSON array matching this schema:
           if (rankedJobs.length > 0) {
             rankedJobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
             console.log("==================================================");
-            console.log(`[Gemini Ranking] Model Used: ${model}`);
-            console.log("[Gemini Ranking] Top ranked jobs with genuine AI scores and reasons:");
+            console.log(`[Gemini Ranking & Skill Gap] Model Used: ${model}`);
+            console.log("[Gemini Ranking & Skill Gap] Top ranked jobs with genuine AI scores and skills breakdown:");
             rankedJobs.forEach((r, idx) => {
               console.log(` #${idx + 1} [${r.source}] [${r.matchScore}%] "${r.title}" at ${r.company}`);
               console.log(`    Why: ${r.whyMatch}`);
+              console.log(`    Matching Skills:`, r.matchingSkills);
+              console.log(`    Missing Skills:`, r.missingSkills?.map((m) => m.skill));
             });
             console.log("==================================================");
             return rankedJobs;
@@ -412,6 +468,8 @@ Return a JSON array matching this schema:
 
   // Fallback if Gemini quota is exceeded: sort by semantic relevance to search query
   const keywords = `${background} ${interests}`.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const primarySkill = background.split(",")[0]?.trim() || "Practical Experience";
+
   const scoredJobs = jobs.map((job) => {
     let score = 30;
     const text = `${job.title} ${job.description}`.toLowerCase();
@@ -440,6 +498,19 @@ Return a JSON array matching this schema:
       ...job,
       matchScore: score,
       whyMatch: specificWhy,
+      matchingSkills: [primarySkill, "Creative Problem Solving", "Communication"],
+      missingSkills: [
+        {
+          skill: "Industry Tooling & Workflow",
+          reason: "Recommended to accelerate onboarding and project delivery",
+          resource: {
+            title: `${job.title} Practical Workflow`,
+            type: "free" as const,
+            platform: "YouTube / Online Guides",
+            url: `https://www.youtube.com/results?search_query=${encodeURIComponent(job.title + " skills tutorial")}`,
+          },
+        },
+      ],
     };
   });
 
