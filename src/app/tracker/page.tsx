@@ -32,10 +32,10 @@ export default function TrackerPage() {
   // Test Mode toggle state (persisted to localStorage)
   const [testMode, setTestMode] = useState<boolean>(false);
 
-  // Initialize testMode on client mount
+  // Initialize testMode on client mount with fallback
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("skillsetu_test_mode");
+      const stored = localStorage.getItem("skill2set_test_mode") || localStorage.getItem("skillsetu_test_mode");
       if (stored === "true") setTestMode(true);
     }
   }, []);
@@ -44,7 +44,7 @@ export default function TrackerPage() {
     setTestMode((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
-        localStorage.setItem("skillsetu_test_mode", String(next));
+        localStorage.setItem("skill2set_test_mode", String(next));
       }
       return next;
     });

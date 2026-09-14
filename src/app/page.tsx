@@ -93,18 +93,35 @@ export default function HomePage() {
       <div className="w-full max-w-2xl">
         {/* Hero */}
         <div className="text-center mb-10 space-y-3">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-3.5 py-1 text-xs font-semibold text-amber-400 mb-2">
-            <span>✨</span> There is always a way forward
+          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/10 border border-amber-500/30 px-4 py-1.5 text-xs font-bold text-amber-300 mb-2 shadow-sm">
+            <span className="text-amber-400">⚡</span>
+            <span>AI-Powered Career Intelligence Platform</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight leading-tight">
-            Discover your{" "}
+            Turn your skills into your{" "}
             <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 bg-clip-text text-transparent">
-              path forward
+              next opportunity
             </span>
           </h2>
           <p className="text-muted text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
-            Describe your skills or passions in your own words. We uncover real job matches, gig opportunities, and step-by-step career roadmaps across India and beyond.
+            Match your background with real jobs, identify skill gaps with curated learning paths, and unlock step-by-step career roadmaps.
           </p>
+
+          {/* Value Proposition Micro-Badges */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold text-foreground/80">
+            <span className="inline-flex items-center gap-1 bg-card border border-border/80 px-2.5 py-1 rounded-full">
+              <span>🎯</span> Semantic Job Matching
+            </span>
+            <span className="inline-flex items-center gap-1 bg-card border border-border/80 px-2.5 py-1 rounded-full">
+              <span>⚡</span> Skill Gap Analysis
+            </span>
+            <span className="inline-flex items-center gap-1 bg-card border border-border/80 px-2.5 py-1 rounded-full">
+              <span>🗺️</span> Creator & Gig Roadmaps
+            </span>
+            <span className="inline-flex items-center gap-1 bg-card border border-border/80 px-2.5 py-1 rounded-full">
+              <span>📊</span> Kanban Job Status
+            </span>
+          </div>
         </div>
 
         {/* Card */}

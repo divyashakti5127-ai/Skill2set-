@@ -71,6 +71,15 @@ export interface UserAccount {
 }
 
 const STORAGE_KEYS = {
+  USER: "skill2set_user",
+  PROFILES: "skill2set_profiles",
+  SAVED_JOBS: "skill2set_saved_jobs",
+  SAVED_ROADMAPS: "skill2set_saved_roadmaps",
+  ACTIVE_PROFILE_ID: "skill2set_active_profile_id",
+};
+
+// Legacy keys for backward compatibility
+const LEGACY_KEYS = {
   USER: "skillsetu_user",
   PROFILES: "skillsetu_profiles",
   SAVED_JOBS: "skillsetu_saved_jobs",
@@ -78,11 +87,24 @@ const STORAGE_KEYS = {
   ACTIVE_PROFILE_ID: "skillsetu_active_profile_id",
 };
 
+function getItemWithFallback(key: string, legacyKey: string): string | null {
+  if (typeof window === "undefined") return null;
+  const current = localStorage.getItem(key);
+  if (current !== null) return current;
+  const legacy = localStorage.getItem(legacyKey);
+  if (legacy !== null) {
+    // Migrate to new key
+    localStorage.setItem(key, legacy);
+    return legacy;
+  }
+  return null;
+}
+
 export function getStoredUser(): UserAccount {
   if (typeof window === "undefined") return { name: "Guest User", email: "", avatarText: "GU", isLoggedIn: false };
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.USER);
-    return raw ? JSON.parse(raw) : { name: "Dev Explorer", email: "explorer@skillsetu.in", avatarText: "DE", isLoggedIn: true };
+    const raw = getItemWithFallback(STORAGE_KEYS.USER, LEGACY_KEYS.USER);
+    return raw ? JSON.parse(raw) : { name: "Dev Explorer", email: "explorer@skill2set.in", avatarText: "DE", isLoggedIn: true };
   } catch {
     return { name: "Guest User", email: "", avatarText: "GU", isLoggedIn: false };
   }
@@ -100,7 +122,7 @@ export function saveStoredUser(user: UserAccount): void {
 export function getStoredProfiles(): SkillProfile[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PROFILES);
+    const raw = getItemWithFallback(STORAGE_KEYS.PROFILES, LEGACY_KEYS.PROFILES);
     if (!raw) {
       const defaultProfiles: SkillProfile[] = [
         {
@@ -141,7 +163,7 @@ export function saveStoredProfiles(profiles: SkillProfile[]): void {
 export function getStoredSavedJobs(): SavedJob[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SAVED_JOBS);
+    const raw = getItemWithFallback(STORAGE_KEYS.SAVED_JOBS, LEGACY_KEYS.SAVED_JOBS);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -160,7 +182,7 @@ export function saveStoredSavedJobs(jobs: SavedJob[]): void {
 export function getStoredSavedRoadmaps(): SavedRoadmap[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SAVED_ROADMAPS);
+    const raw = getItemWithFallback(STORAGE_KEYS.SAVED_ROADMAPS, LEGACY_KEYS.SAVED_ROADMAPS);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -178,7 +200,7 @@ export function saveStoredSavedRoadmaps(roadmaps: SavedRoadmap[]): void {
 
 export function getActiveProfileId(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE_ID);
+  return getItemWithFallback(STORAGE_KEYS.ACTIVE_PROFILE_ID, LEGACY_KEYS.ACTIVE_PROFILE_ID);
 }
 
 export function setActiveProfileId(id: string): void {

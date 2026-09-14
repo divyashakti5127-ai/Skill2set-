@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Skillsetu | Bridging Skills to Real Opportunities",
-  description: "Bridging your skills to real opportunities — AI-powered job matching, skill gap analysis & creator roadmaps.",
+  title: "Skill2Set | Turn Your Skills Into Your Next Opportunity",
+  description: "AI-Powered Career Intelligence Platform — smart job discovery, skill gap analysis, creator roadmaps, and Kanban application tracking.",
 };
 
 export default function RootLayout({
