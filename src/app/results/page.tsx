@@ -355,7 +355,7 @@ function LoadingSkeleton() {
 
 function ResultsContent() {
   const searchParams = useSearchParams();
-  const { saveJob, isJobSaved, activeProfile } = useApp();
+  const { saveJob, isJobSaved, activeProfile, openCopilot } = useApp();
 
   const background = searchParams.get("background") || activeProfile?.background || "";
   const interests = searchParams.get("interests") || activeProfile?.interests || "";
@@ -835,6 +835,16 @@ function ResultsContent() {
                       }`}
                     >
                       {isSaved ? "★ Saved in Job Status" : "☆ Save Job"}
+                    </button>
+
+                    {/* Ask Copilot about this role */}
+                    <button
+                      onClick={() => openCopilot({ job, prompt: `Why does this ${job.title} job at ${job.company} match me, and how can I close the skill gaps?` })}
+                      className="rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-2 text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+                      title="Ask Copilot for custom career advice for this job"
+                    >
+                      <span>✨</span>
+                      <span>Ask Copilot</span>
                     </button>
                   </div>
 

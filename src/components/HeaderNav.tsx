@@ -7,7 +7,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function HeaderNav() {
   const pathname = usePathname();
-  const { savedJobs, savedRoadmaps } = useApp();
+  const { savedJobs, savedRoadmaps, openCopilot } = useApp();
 
   return (
     <header className="border-b border-border/80 bg-card/70 backdrop-blur-md sticky top-0 z-40">
@@ -71,6 +71,15 @@ export default function HeaderNav() {
               </span>
             )}
           </Link>
+
+          <button
+            onClick={() => openCopilot()}
+            className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 cursor-pointer shadow-xs"
+            aria-label="Open Skillsetu Copilot"
+          >
+            <span>✨</span>
+            <span>Copilot</span>
+          </button>
         </div>
       </div>
     </header>

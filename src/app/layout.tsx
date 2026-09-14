@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import HeaderNav from "@/components/HeaderNav";
 import UserAuthModal from "@/components/UserAuthModal";
+import CareerCopilot from "@/components/CareerCopilot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,9 @@ export default function RootLayout({
 
           {/* Account / User Modal */}
           <UserAuthModal />
+
+          {/* AI Career Copilot */}
+          <CareerCopilot />
         </AppProvider>
       </body>
     </html>

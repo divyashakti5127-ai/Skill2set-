@@ -24,6 +24,7 @@ export default function TrackerPage() {
     updateSavedJob,
     removeSavedJob,
     activeProfile,
+    openCopilot,
   } = useApp();
   const [activeKitData, setActiveKitData] = useState<ApplicationKitData | null>(null);
   const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
@@ -415,12 +416,22 @@ export default function TrackerPage() {
                       {/* Card Actions & Stage Mover */}
                       <div className="pt-2 border-t border-border/80 flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-1.5">
-                          <button
-                            onClick={() => handleOpenKit(job)}
-                            className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1"
-                          >
-                            <span>📝</span> App Kit
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleOpenKit(job)}
+                              className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1"
+                            >
+                              <span>📝</span> App Kit
+                            </button>
+
+                            <button
+                              onClick={() => openCopilot({ job, prompt: `How should I prepare for this ${job.title} role at ${job.company} given my background and missing skills?` })}
+                              className="text-[11px] font-semibold text-amber-300/90 hover:text-amber-300 transition-colors flex items-center gap-1"
+                              title="Ask Copilot for interview and application guidance"
+                            >
+                              <span>✨</span> Copilot
+                            </button>
+                          </div>
 
                           {job.applyLink && (
                             <button

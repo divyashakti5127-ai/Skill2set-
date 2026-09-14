@@ -52,6 +52,14 @@ interface AppContextType {
   removeSavedRoadmap: (id: string) => void;
   isRoadmapSaved: (field: string) => boolean;
   getSavedRoadmapByField: (field: string) => SavedRoadmap | undefined;
+
+  // Phase 3: AI Career Copilot Context
+  isCopilotOpen: boolean;
+  copilotJob: any | null;
+  copilotRoadmap: any | null;
+  initialCopilotPrompt: string | null;
+  openCopilot: (opts?: { job?: any; roadmap?: any; prompt?: string }) => void;
+  closeCopilot: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,6 +78,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [savedRoadmaps, setSavedRoadmaps] = useState<SavedRoadmap[]>([]);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Copilot State
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [copilotJob, setCopilotJob] = useState<any | null>(null);
+  const [copilotRoadmap, setCopilotRoadmap] = useState<any | null>(null);
+  const [initialCopilotPrompt, setInitialCopilotPrompt] = useState<string | null>(null);
+
+  const openCopilot = (opts?: { job?: any; roadmap?: any; prompt?: string }) => {
+    if (opts?.job !== undefined) setCopilotJob(opts.job);
+    if (opts?.roadmap !== undefined) setCopilotRoadmap(opts.roadmap);
+    if (opts?.prompt) setInitialCopilotPrompt(opts.prompt);
+    setIsCopilotOpen(true);
+  };
+
+  const closeCopilot = () => {
+    setIsCopilotOpen(false);
+    setInitialCopilotPrompt(null);
+  };
 
   // Initialize from LocalStorage
   useEffect(() => {
@@ -340,6 +366,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         removeSavedRoadmap,
         isRoadmapSaved,
         getSavedRoadmapByField,
+        isCopilotOpen,
+        copilotJob,
+        copilotRoadmap,
+        initialCopilotPrompt,
+        openCopilot,
+        closeCopilot,
       }}
     >
       {children}
