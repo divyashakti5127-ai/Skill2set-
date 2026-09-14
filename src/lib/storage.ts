@@ -13,6 +13,18 @@ export interface MissingSkill {
   resource?: SkillResource;
 }
 
+export interface DetailedSkill {
+  name: string;
+  category: "technical" | "soft" | "domain" | "tool";
+}
+
+export interface WorkExperienceItem {
+  role: string;
+  company: string;
+  duration?: string;
+  highlights?: string[];
+}
+
 export interface SkillProfile {
   id: string;
   title: string;
@@ -23,6 +35,14 @@ export interface SkillProfile {
   workMode?: string;
   minSalary?: string;
   createdAt: string;
+
+  // Optional Phase 2 MVP fields (Non-breaking)
+  parsedSkills?: DetailedSkill[];
+  workHistory?: WorkExperienceItem[];
+  education?: string[];
+  summaryBio?: string;
+  suggestedRoles?: string[];
+  certifications?: string[];
 }
 
 export interface SavedJob {

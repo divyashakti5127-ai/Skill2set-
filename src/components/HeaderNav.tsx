@@ -14,12 +14,12 @@ export default function HeaderNav() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform tracking-wider">
-            S2S
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform tracking-wider">
+            SS
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground group-hover:text-amber-400 transition-colors flex items-center gap-1.5">
-              Skill2Set
+              Skillsetu
             </h1>
             <p className="text-[11px] text-muted hidden md:block tracking-wide">
               Turn your skills into your next opportunity

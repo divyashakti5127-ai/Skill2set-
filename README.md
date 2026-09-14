@@ -1,4 +1,4 @@
-﻿# Skill2Set ⚡
+﻿# Skillsetu ⚡
 
 > **Turn your skills into your next opportunity.**  
 > An AI-powered Career Intelligence Platform featuring real-time multi-provider job aggregation, semantic skill-gap analysis, creator career roadmaps, and full-lifecycle Kanban application tracking.
@@ -11,11 +11,11 @@
 
 ---
 
-## 🎯 What is Skill2Set?
+## 🎯 What is Skillsetu?
 
 Traditional job boards rely on rigid title searches and keyword filters that fail career switchers, multidisciplinary creators, and gig professionals.
 
-**Skill2Set transforms raw user capabilities into concrete career outcomes:**
+**Skillsetu transforms raw user capabilities into concrete career outcomes:**
 1. **Natural-Language Understanding**: Describe your passions and background in your own words.
 2. **Multi-Source Real-Time Aggregation**: Simultaneously aggregates live listings from **Adzuna**, **RapidAPI JSearch**, and **Remotive**.
 3. **AI Semantic Ranking & Explainability**: Gemini AI calculates match percentages and writes role-specific `whyMatch` rationales based on actual job duties.
@@ -29,7 +29,7 @@ Traditional job boards rely on rigid title searches and keyword filters that fai
 
 ```mermaid
 flowchart TD
-    User([User Natural Language Input]) --> SearchEngine[Skill2Set Search Engine]
+    User([User Natural Language Input]) --> SearchEngine[Skillsetu Search Engine]
     
     subgraph AI Intelligence Layer
         SearchEngine --> GeminiQueries[Gemini Multi-Layer Query Generator]

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import SaveProfilePromptModal from "@/components/SaveProfilePromptModal";
+import ResumeUploadModal from "@/components/ResumeUploadModal";
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,6 +22,9 @@ export default function HomePage() {
 
   // Save profile prompt state
   const [showSaveModal, setShowSaveModal] = useState(false);
+
+  // Resume Intelligence upload/paste modal state
+  const [showResumeModal, setShowResumeModal] = useState(false);
 
   // Sync form when active profile changes
   useEffect(() => {
@@ -44,6 +48,21 @@ export default function HomePage() {
 
   const handleExample = (ex: string) => {
     setGoodAt(ex);
+    setError("");
+  };
+
+  const handleApplyExtractedProfile = (parsed: any) => {
+    if (parsed.searchBackground) setGoodAt(parsed.searchBackground);
+    if (parsed.interests) setInterests(parsed.interests);
+    if (parsed.location) setWhere(parsed.location);
+    if (parsed.experienceLevel) {
+      setExperience(parsed.experienceLevel);
+      setShowPrefs(true);
+    }
+    if (parsed.workMode) {
+      setWorkMode(parsed.workMode);
+      setShowPrefs(true);
+    }
     setError("");
   };
 
@@ -129,6 +148,25 @@ export default function HomePage() {
           onSubmit={handleFormSubmit}
           className="bg-card border border-border hover:border-amber-500/30 transition-colors rounded-3xl p-6 sm:p-10 shadow-2xl relative backdrop-blur-sm"
         >
+          {/* Quick Auto-Fill with Resume Action Banner */}
+          <div className="mb-6 p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-base">📄</span>
+              <div>
+                <p className="text-xs font-bold text-foreground">Have a Resume or LinkedIn Profile?</p>
+                <p className="text-[11px] text-muted">Auto-extract your skills & target roles with AI</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowResumeModal(true)}
+              className="rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold px-3.5 py-1.5 text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 self-start sm:self-auto shadow-sm"
+            >
+              <span>⚡</span>
+              <span>Auto-Fill from Resume</span>
+            </button>
+          </div>
+
           {/* Field 1 – Good at */}
           <div className="mb-6">
             <label
@@ -324,6 +362,13 @@ export default function HomePage() {
             minSalary,
           }}
           onProceed={handleProceedExplore}
+        />
+
+        {/* Resume Upload / Paste Intelligence Modal */}
+        <ResumeUploadModal
+          isOpen={showResumeModal}
+          onClose={() => setShowResumeModal(false)}
+          onApplyProfile={handleApplyExtractedProfile}
         />
       </div>
     </div>

@@ -55,7 +55,7 @@ export default function ApplicationKitModal({
 
   const handleDownload = () => {
     const fullDoc = `=====================================================
-SKILL2SET APPLICATION KIT
+SKILLSETU APPLICATION KIT
 Target Role: ${data.job.title}
 Company: ${data.job.company} (${data.job.location})
 Generated: ${new Date().toLocaleDateString()}
@@ -80,7 +80,7 @@ ${resumeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Skill2Set_Application_Kit_${data.job.title.replace(/[^a-zA-Z0-9]/g, "_")}.txt`;
+    link.download = `Skillsetu_Application_Kit_${data.job.title.replace(/[^a-zA-Z0-9]/g, "_")}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

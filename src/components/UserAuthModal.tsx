@@ -96,7 +96,7 @@ export default function UserAuthModal() {
                 {user.name || "My Account"}
               </h3>
               <p className="text-xs text-muted truncate max-w-[220px]">
-                {user.email || "explorer@skill2set.in"}
+                {user.email || "explorer@skillsetu.in"}
               </p>
             </div>
           </div>
@@ -377,7 +377,7 @@ export default function UserAuthModal() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. explorer@skill2set.in"
+                placeholder="e.g. explorer@skillsetu.in"
                 className="w-full rounded-2xl border border-border bg-background px-3.5 py-2.5 text-xs sm:text-sm text-foreground focus:outline-none focus:border-amber-500"
               />
             </div>
